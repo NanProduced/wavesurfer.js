@@ -198,6 +198,7 @@ class BeatDetectionPlugin extends BasePlugin<BeatDetectionPluginEvents, BeatDete
   private container: HTMLElement
   private _snapToBeat: boolean = false
   private isInitialized: boolean = false
+  private frameDuration: number = 0
 
   static create(options?: BeatDetectionPluginOptions) {
     return new BeatDetectionPlugin(options || {})
@@ -226,6 +227,39 @@ class BeatDetectionPlugin extends BasePlugin<BeatDetectionPluginEvents, BeatDete
     })
   }
 
+  private findRegionsPlugin(): BasePlugin | null {
+    if (!this.wavesurfer) return null
+    const plugins = this.wavesurfer.getActivePlugins()
+    for (const plugin of plugins) {
+      const name = plugin.constructor.name
+      if (name === 'RegionsPlugin' || name.toLowerCase().includes('region')) {
+        return plugin
+      }
+    }
+    return null
+  }
+
+  private setupRegionSnapListener() {
+    const regionsPlugin = this.findRegionsPlugin()
+    if (!regionsPlugin) return
+
+    const onRegionUpdated = (region: any) => {
+      if (!this._snapToBeat || this.beatTimes.length === 0) return
+
+      const snappedStart = this.getNearestBeat(region.start)
+      const snappedEnd = this.getNearestBeat(region.end)
+
+      if (snappedStart !== null && snappedStart !== region.start) {
+        region.start = snappedStart
+      }
+      if (snappedEnd !== null && snappedEnd !== region.end) {
+        region.end = snappedEnd
+      }
+    }
+
+    this.subscriptions.push((regionsPlugin as any).on('region-updated', onRegionUpdated))
+  }
+
   /** Called by wavesurfer, don't call manually */
   onInit() {
     if (!this.wavesurfer) {
@@ -240,6 +274,7 @@ class BeatDetectionPlugin extends BasePlugin<BeatDetectionPluginEvents, BeatDete
     this.subscriptions.push(
       this.wavesurfer.on('ready', () => {
         this.detectBeats()
+        setTimeout(() => this.setupRegionSnapListener(), 0)
       }),
 
       this.wavesurfer.on('redraw', () => {
@@ -363,13 +398,15 @@ class BeatDetectionPlugin extends BasePlugin<BeatDetectionPluginEvents, BeatDete
       frames.push(channelData.slice(i, i + fftSize))
     }
 
+    this.frameDuration = hopSize / sampleRate
+
     const spectralFlux = this.calculateSpectralFlux(frames, fftSize, sampleRate)
-    const peaks = this.detectPeaks(spectralFlux)
+    const peakFrames = this.detectPeaks(spectralFlux)
 
-    const frameDuration = hopSize / sampleRate
-    this.beatTimes = peaks.map((peakIndex) => peakIndex * frameDuration)
+    this.beatTimes = peakFrames.map((frameIndex) => frameIndex * this.frameDuration)
 
-    this.calculateBpmFromBeats()
+    this.calculateBpmWithAutocorrelation(spectralFlux, peakFrames)
+
     this.renderBeatGrid()
     this.emit('beat-detection-complete', this.beatTimes, this._bpm)
   }
@@ -432,27 +469,128 @@ class BeatDetectionPlugin extends BasePlugin<BeatDetectionPluginEvents, BeatDete
     return peaks
   }
 
+  private calculateBpmWithAutocorrelation(spectralFlux: number[], peakFrames: number[]): void {
+    if (peakFrames.length < 4) {
+      this._bpm = 0
+      return
+    }
+
+    const minLag = Math.floor(60 / this.options.maxBpm / this.frameDuration)
+    const maxLag = Math.ceil(60 / this.options.minBpm / this.frameDuration)
+
+    const totalFrames = spectralFlux.length
+    const envelope = new Float32Array(totalFrames)
+
+    for (const frame of peakFrames) {
+      const windowHalfSize = 2
+      for (let offset = -windowHalfSize; offset <= windowHalfSize; offset++) {
+        const idx = frame + offset
+        if (idx >= 0 && idx < totalFrames) {
+          const gaussian = Math.exp(-(offset * offset) / (2 * windowHalfSize))
+          envelope[idx] = Math.max(envelope[idx], spectralFlux[frame] * gaussian)
+        }
+      }
+    }
+
+    const autocorr = new Map<number, number>()
+
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      let sum = 0
+      let count = 0
+
+      for (let i = 0; i + lag < totalFrames; i++) {
+        if (envelope[i] > 0 && envelope[i + lag] > 0) {
+          sum += envelope[i] * envelope[i + lag]
+          count++
+        }
+      }
+
+      if (count > 0) {
+        autocorr.set(lag, sum / Math.sqrt(count))
+      }
+    }
+
+    if (autocorr.size === 0) {
+      this._bpm = 0
+      return
+    }
+
+    let maxCorr = 0
+    let bestLag = 0
+
+    autocorr.forEach((corr, lag) => {
+      let enhancedCorr = corr
+
+      const halfLag = Math.floor(lag / 2)
+      if (halfLag >= minLag && autocorr.has(halfLag)) {
+        enhancedCorr += autocorr.get(halfLag)! * 0.3
+      }
+
+      const doubleLag = lag * 2
+      if (doubleLag <= maxLag && autocorr.has(doubleLag)) {
+        enhancedCorr += autocorr.get(doubleLag)! * 0.2
+      }
+
+      if (enhancedCorr > maxCorr) {
+        maxCorr = enhancedCorr
+        bestLag = lag
+      }
+    })
+
+    if (bestLag === 0) {
+      this._bpm = 0
+      return
+    }
+
+    let bestBpm = 60 / (bestLag * this.frameDuration)
+
+    if (bestBpm < 90 && bestBpm * 2 <= this.options.maxBpm) {
+      const halfLag = Math.floor(bestLag / 2)
+      if (halfLag >= minLag) {
+        const adjacentPeaks = this.countAdjacentPeaks(peakFrames, halfLag)
+        const originalPeaks = this.countAdjacentPeaks(peakFrames, bestLag)
+
+        if (adjacentPeaks > originalPeaks * 0.7) {
+          bestBpm = bestBpm * 2
+        }
+      }
+    } else if (bestBpm > 180 && bestBpm / 2 >= this.options.minBpm) {
+      bestBpm = bestBpm / 2
+    }
+
+    const oldBpm = this._bpm
+    this._bpm = Math.round(bestBpm)
+
+    if (this._bpm !== oldBpm && this._bpm > 0) {
+      this.emit('bpm-change', this._bpm)
+    }
+  }
+
+  private countAdjacentPeaks(peakFrames: number[], targetLag: number): number {
+    let count = 0
+    const tolerance = Math.max(2, Math.floor(targetLag * 0.15))
+
+    for (let i = 0; i < peakFrames.length; i++) {
+      for (let j = i + 1; j < peakFrames.length; j++) {
+        const diff = peakFrames[j] - peakFrames[i]
+        if (Math.abs(diff - targetLag) <= tolerance) {
+          count++
+        } else if (Math.abs(diff - targetLag * 2) <= tolerance) {
+          count += 0.5
+        } else if (Math.abs(diff - targetLag * 3) <= tolerance) {
+          count += 0.3
+        }
+      }
+    }
+
+    return count
+  }
+
   private calculateBpmFromBeats(): void {
     if (this.beatTimes.length < 4) {
       this._bpm = 0
       return
     }
-
-    const bpm = this.calculateBpmWithAutocorrelation(this.beatTimes)
-
-    if (bpm > 0) {
-      const oldBpm = this._bpm
-      this._bpm = Math.round(bpm)
-      if (this._bpm !== oldBpm) {
-        this.emit('bpm-change', this._bpm)
-      }
-    } else {
-      this._bpm = 0
-    }
-  }
-
-  private calculateBpmWithAutocorrelation(beatTimes: number[]): number {
-    if (beatTimes.length < 4) return 0
 
     const minInterval = 60 / this.options.maxBpm
     const maxInterval = 60 / this.options.minBpm
@@ -460,9 +598,9 @@ class BeatDetectionPlugin extends BasePlugin<BeatDetectionPluginEvents, BeatDete
     const intervalHistogram: Map<number, number> = new Map()
     const binSize = 0.01
 
-    for (let i = 0; i < beatTimes.length; i++) {
-      for (let j = i + 1; j < beatTimes.length; j++) {
-        let interval = beatTimes[j] - beatTimes[i]
+    for (let i = 0; i < this.beatTimes.length; i++) {
+      for (let j = i + 1; j < this.beatTimes.length; j++) {
+        let interval = this.beatTimes[j] - this.beatTimes[i]
 
         while (interval > 0 && interval < minInterval) {
           interval *= 2
@@ -482,7 +620,10 @@ class BeatDetectionPlugin extends BasePlugin<BeatDetectionPluginEvents, BeatDete
       }
     }
 
-    if (intervalHistogram.size === 0) return 0
+    if (intervalHistogram.size === 0) {
+      this._bpm = 0
+      return
+    }
 
     let maxScore = 0
     let bestInterval = 0
@@ -499,7 +640,7 @@ class BeatDetectionPlugin extends BasePlugin<BeatDetectionPluginEvents, BeatDete
       const doubleInterval = interval * 2
       if (doubleInterval <= maxInterval) {
         const doubleBin = Math.round(doubleInterval / binSize) * binSize
-        enhancedScore += (intervalHistogram.get(doubleBin) || 0) * 0.3
+        enhancedScore += (intervalHistogram.get(doubleBin) || 0) * 0.2
       }
 
       if (enhancedScore > maxScore) {
@@ -508,7 +649,10 @@ class BeatDetectionPlugin extends BasePlugin<BeatDetectionPluginEvents, BeatDete
       }
     })
 
-    if (bestInterval === 0) return 0
+    if (bestInterval === 0) {
+      this._bpm = 0
+      return
+    }
 
     let bestBpm = 60 / bestInterval
 
@@ -518,8 +662,8 @@ class BeatDetectionPlugin extends BasePlugin<BeatDetectionPluginEvents, BeatDete
       let doubleScore = 0
       let normalScore = 0
 
-      for (let i = 0; i < beatTimes.length - 1; i++) {
-        const interval = beatTimes[i + 1] - beatTimes[i]
+      for (let i = 0; i < this.beatTimes.length - 1; i++) {
+        const interval = this.beatTimes[i + 1] - this.beatTimes[i]
         const ratioToDouble = interval / doubleInterval
         const ratioToNormal = interval / bestInterval
 
@@ -538,12 +682,12 @@ class BeatDetectionPlugin extends BasePlugin<BeatDetectionPluginEvents, BeatDete
       bestBpm = bestBpm / 2
     }
 
-    bestBpm = Math.round(bestBpm)
-    if (bestBpm >= this.options.minBpm && bestBpm <= this.options.maxBpm) {
-      return bestBpm
-    }
+    const oldBpm = this._bpm
+    this._bpm = Math.round(bestBpm)
 
-    return 0
+    if (this._bpm !== oldBpm && this._bpm > 0) {
+      this.emit('bpm-change', this._bpm)
+    }
   }
 
   private handleBeatDragEnd(beatIndex: number, oldTime: number, newTime: number) {
