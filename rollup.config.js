@@ -52,6 +52,7 @@ export default [
   // Wavesurfer plugins (exclude worker files)
   ...glob
     .sync('src/plugins/*.ts')
+    .map((p) => p.replace(/\\/g, '/'))
     .filter((plugin) => !plugin.includes('worker'))
     .map((plugin) => [
       // ES module

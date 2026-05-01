@@ -10,3 +10,7 @@ cypress/**/__diff_output__/
 .env
 coverage/
 eslint_report.json
+.claude/
+.serena/
+.gemini/
+.playwright-mcp/
