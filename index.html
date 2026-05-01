@@ -896,6 +896,13 @@
           'controls.speed': 'Speed',
           'controls.mute': 'Mute',
           'controls.unmute': 'Unmute',
+          'controls.speed.option_1': '0.25x',
+          'controls.speed.option_2': '0.5x',
+          'controls.speed.option_3': '0.75x',
+          'controls.speed.option_4': '1x',
+          'controls.speed.option_5': '1.25x',
+          'controls.speed.option_6': '1.5x',
+          'controls.speed.option_7': '2x',
           'meta.duration': 'Duration',
           'meta.sampleRate': 'Sample Rate',
           'meta.channels': 'Channels',
@@ -904,6 +911,7 @@
           'regions.end': 'End',
           'regions.delete': 'Delete',
           'regions.empty': 'No regions',
+          'regions.untitled': 'Region',
         },
         zh: {
           'nav.basics': '基础示例',
@@ -949,6 +957,13 @@
           'controls.speed': '速度',
           'controls.mute': '静音',
           'controls.unmute': '取消静音',
+          'controls.speed.option_1': '0.25倍',
+          'controls.speed.option_2': '0.5倍',
+          'controls.speed.option_3': '0.75倍',
+          'controls.speed.option_4': '1倍',
+          'controls.speed.option_5': '1.25倍',
+          'controls.speed.option_6': '1.5倍',
+          'controls.speed.option_7': '2倍',
           'meta.duration': '时长',
           'meta.sampleRate': '采样率',
           'meta.channels': '声道',
@@ -957,6 +972,7 @@
           'regions.end': '结束',
           'regions.delete': '删除',
           'regions.empty': '暂无区域',
+          'regions.untitled': '区域',
         }
       }
 
@@ -1074,13 +1090,26 @@
         }
       }
 
-      // Wait for iframe to load before sending messages
+      // Send baked-in theme/i18n to iframe immediately on load (no postMessage round-trip)
       iframe.addEventListener('load', () => {
-        communicateTheme(currentTheme)
-        communicateLanguage(currentLang, translations[currentLang])
+        iframe.contentWindow.postMessage({ type: 'init', theme: currentTheme }, '*')
+        // Directly call __applyI18n to skip postMessage for language
+        try {
+          iframe.contentWindow.__applyI18n?.(currentLang, translations[currentLang])
+        } catch (_) {
+          // fallback to postMessage if iframe not ready yet
+          communicateLanguage(currentLang, translations[currentLang])
+        }
+        // Theme is handled via the baked-in srcdoc + the postMessage above
       })
 
-      import('/examples/_preview.js')
+      import('/examples/_preview.js').then(() => {
+  // Make translations and currentTheme available to _preview.js via window
+  // so ES module scoping doesn't block access
+  window.__sharedTranslations = translations
+  window.__sharedTheme = currentTheme
+  window.__sharedLang = currentLang
+})
     </script>
   </body>
 </html>

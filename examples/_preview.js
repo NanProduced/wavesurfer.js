@@ -386,7 +386,7 @@ const sharedHTML = `
   </div>
 `
 
-const loadPreview = (code) => {
+const loadPreview = (code, theme, trans) => {
   const html = code.replace(/\n/g, '').match(/<html>(.+?)<\/html>/gm) || []
   let script = code
     .replace(/<\/script>/g, '')
@@ -406,9 +406,12 @@ const loadPreview = (code) => {
 
   const originalHtml = html.join('').replace(/<html>|<\/html>/g, '')
 
+  // Bake theme + translations into srcdoc so no postMessage flash on load
+  const srcdocTheme = theme || 'light'
+
   iframe.srcdoc = `
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html data-theme="${srcdocTheme}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -423,6 +426,14 @@ const loadPreview = (code) => {
     </div>
 
     <script type="${isBabel ? 'text/babel' : 'module'}" data-type="module">
+// Bake theme + translations into the iframe page — no postMessage round-trip needed
+window.__currentTheme = ${JSON.stringify(srcdocTheme)}
+window.__currentLang = 'en'
+window.__translations = ${JSON.stringify(trans || {})}
+
+// Signal _controls.js to skip the postMessage wait and apply immediately
+window.__skipInitialApply = true
+
 import '/examples/_controls.js'
 
 ${script}
@@ -433,12 +444,15 @@ ${script}
 }
 
 const openExample = (url) => {
+  const shared = window.__sharedTranslations || {}
+  const theme = window.__sharedTheme || 'light'
   fetch(`/examples/${url}`, {
     cache: 'no-cache',
   })
     .then((res) => res.text())
     .then((text) => {
-      loadPreview(text)
+      const lang = window.__sharedLang || 'en'
+      loadPreview(text, theme, shared[lang] || shared.en || {})
       textarea.value = text
     })
 }
@@ -447,7 +461,10 @@ let delay
 document.querySelector('textarea').addEventListener('input', (e) => {
   if (delay) clearTimeout(delay)
   delay = setTimeout(() => {
-    loadPreview(e.target.value)
+    const shared = window.__sharedTranslations || {}
+    const theme = window.__sharedTheme || 'light'
+    const lang = window.__sharedLang || 'en'
+    loadPreview(e.target.value, theme, shared[lang] || shared.en || {})
   }, 500)
 })
 
