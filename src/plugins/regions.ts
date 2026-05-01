@@ -10,6 +10,15 @@ import createElement from '../dom.js'
 import { createDragStream } from '../reactive/drag-stream.js'
 import { effect } from '../reactive/store.js'
 import { fromEvent, cleanup as cleanupStream } from '../reactive/event-streams.js'
+import {
+  exportRegionAsWAV,
+  downloadBlob,
+  createZipArchive,
+  generateFilename,
+  type ExportOptions,
+  type RegionInfo,
+} from '../audio-exporter.js'
+import { contextMenu, exportDialog, progressDialog } from '../export-ui.js'
 
 export type RegionsPluginOptions = undefined
 export type UpdateSide = 'start' | 'end'
@@ -34,6 +43,8 @@ export type RegionsPluginEvents = BasePluginEvents & {
   'region-out': [region: Region]
   /** When region content is changed */
   'region-content-changed': [region: Region]
+  /** When a region is right-clicked */
+  'region-context-menu': [region: Region, e: MouseEvent]
 }
 
 export type RegionEvents = {
@@ -57,6 +68,8 @@ export type RegionEvents = {
   leave: [event: MouseEvent]
   /** content changed */
   'content-changed': []
+  /** Right click / context menu */
+  'context-menu': [event: MouseEvent]
 }
 
 export type RegionParams = {
@@ -289,6 +302,7 @@ class SingleRegion extends EventEmitter<RegionEvents> implements Region {
     const dblclicks = fromEvent(element, 'dblclick')
     const pointerdowns = fromEvent(element, 'pointerdown')
     const pointerups = fromEvent(element, 'pointerup')
+    const contextmenus = fromEvent(element, 'contextmenu')
 
     // Subscribe to streams
     const unsubscribeClick = clicks.subscribe((e) => e && this.emit('click', e))
@@ -297,6 +311,10 @@ class SingleRegion extends EventEmitter<RegionEvents> implements Region {
     const unsubscribeDblclick = dblclicks.subscribe((e) => e && this.emit('dblclick', e))
     const unsubscribePointerdown = pointerdowns.subscribe((e) => e && this.toggleCursor(true))
     const unsubscribePointerup = pointerups.subscribe((e) => e && this.toggleCursor(false))
+    const unsubscribeContextmenu = contextmenus.subscribe((e) => {
+      e?.preventDefault()
+      if (e) this.emit('context-menu', e)
+    })
 
     // Store cleanup
     this.subscriptions.push(() => {
@@ -306,12 +324,14 @@ class SingleRegion extends EventEmitter<RegionEvents> implements Region {
       unsubscribeDblclick()
       unsubscribePointerdown()
       unsubscribePointerup()
+      unsubscribeContextmenu()
       cleanupStream(clicks)
       cleanupStream(mouseenters)
       cleanupStream(mouseleaves)
       cleanupStream(dblclicks)
       cleanupStream(pointerdowns)
       cleanupStream(pointerups)
+      cleanupStream(contextmenus)
     })
 
     // Drag
@@ -614,6 +634,211 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
         activeRegions = playedRegions
       }),
     )
+
+    // Handle right-click context menu
+    this.subscriptions.push(
+      this.on('region-context-menu', (region, event) => {
+        this.showContextMenu(region, event)
+      }),
+    )
+  }
+
+  private getRegionInfo(region: Region): RegionInfo {
+    return {
+      id: region.id,
+      start: region.start,
+      end: region.end,
+      label: region.getContent()?.toString() || undefined,
+    }
+  }
+
+  private showContextMenu(region: Region, event: MouseEvent) {
+    const audioBuffer = this.wavesurfer?.getDecodedData()
+    const hasAudio = !!audioBuffer
+    const exportableRegions = this.regions.filter((r) => r.start !== r.end)
+
+    contextMenu.show(event.clientX, event.clientY, [
+      {
+        label: 'Export region...',
+        disabled: !hasAudio || region.start === region.end,
+        onClick: () => {
+          this.exportRegionDialog(region)
+        },
+      },
+      {
+        label: `Export all regions (${exportableRegions.length})...`,
+        disabled: !hasAudio || exportableRegions.length === 0,
+        divider: true,
+        onClick: () => {
+          this.exportAllRegionsDialog()
+        },
+      },
+      {
+        label: 'Play',
+        divider: true,
+        onClick: () => {
+          region.play(true)
+        },
+      },
+      {
+        label: 'Delete',
+        onClick: () => {
+          region.remove()
+        },
+      },
+      {
+        label: 'Delete all regions',
+        disabled: this.regions.length === 0,
+        onClick: () => {
+          this.clearRegions()
+        },
+      },
+    ])
+  }
+
+  private async exportRegionDialog(region: Region) {
+    const audioBuffer = this.wavesurfer?.getDecodedData()
+    if (!audioBuffer) return
+
+    const regionInfo = this.getRegionInfo(region)
+    const result = await exportDialog.show(regionInfo, false)
+
+    if (result.cancelled) return
+
+    await this.doExportRegion(region, result.options)
+  }
+
+  private async exportAllRegionsDialog() {
+    const audioBuffer = this.wavesurfer?.getDecodedData()
+    if (!audioBuffer) return
+
+    const exportableRegions = this.regions.filter((r) => r.start !== r.end)
+    if (exportableRegions.length === 0) return
+
+    const result = await exportDialog.show(undefined, true)
+
+    if (result.cancelled) return
+
+    await this.doExportAllRegions(exportableRegions, result.options)
+  }
+
+  private async doExportRegion(region: Region, options: ExportOptions) {
+    const audioBuffer = this.wavesurfer?.getDecodedData()
+    if (!audioBuffer) return
+
+    progressDialog.show('Exporting...')
+
+    try {
+      const regionInfo = this.getRegionInfo(region)
+      progressDialog.update(0, 1, `Preparing: ${regionInfo.label || 'region'}`)
+
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      const { wavBlob } = exportRegionAsWAV(audioBuffer, region.start, region.end, options)
+
+      progressDialog.update(1, 1, 'Downloading...')
+
+      const filename = generateFilename(regionInfo)
+      downloadBlob(wavBlob, filename)
+
+      await new Promise((resolve) => setTimeout(resolve, 300))
+    } catch (error) {
+      console.error('Export failed:', error)
+    } finally {
+      progressDialog.hide()
+    }
+  }
+
+  private async doExportAllRegions(regions: Region[], options: ExportOptions) {
+    const audioBuffer = this.wavesurfer?.getDecodedData()
+    if (!audioBuffer) return
+
+    progressDialog.show('Exporting regions...')
+
+    try {
+      const files: { filename: string; blob: Blob }[] = []
+      const sortedRegions = [...regions].sort((a, b) => a.start - b.start)
+
+      for (let i = 0; i < sortedRegions.length; i++) {
+        const region = sortedRegions[i]
+        const regionInfo = this.getRegionInfo(region)
+
+        progressDialog.update(i, sortedRegions.length, `Processing: ${regionInfo.label || `region ${i + 1}`}`)
+
+        await new Promise((resolve) => setTimeout(resolve, 0))
+
+        const { wavBlob } = exportRegionAsWAV(audioBuffer, region.start, region.end, options)
+        const filename = generateFilename(regionInfo, i + 1, sortedRegions.length)
+        files.push({ filename, blob: wavBlob })
+      }
+
+      if (files.length === 1) {
+        progressDialog.update(sortedRegions.length, sortedRegions.length, 'Downloading...')
+        downloadBlob(files[0].blob, files[0].filename)
+      } else {
+        progressDialog.update(sortedRegions.length, sortedRegions.length, 'Creating ZIP archive...')
+
+        try {
+          const zipBlob = await createZipArchive(files, (current, total) => {
+            progressDialog.update(
+              sortedRegions.length + current,
+              sortedRegions.length + total,
+              `Packaging: ${current}/${total}`,
+            )
+          })
+
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+          const zipFilename = `regions_${timestamp}.zip`
+
+          downloadBlob(zipBlob, zipFilename)
+        } catch (zipError) {
+          console.warn('ZIP creation failed, downloading files individually:', zipError)
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 300))
+    } catch (error) {
+      console.error('Batch export failed:', error)
+    } finally {
+      progressDialog.hide()
+    }
+  }
+
+  /**
+   * Export a single region to WAV file.
+   * This is a public API method that can be called programmatically.
+   */
+  public exportRegion(region: Region, options?: ExportOptions): void {
+    const audioBuffer = this.wavesurfer?.getDecodedData()
+    if (!audioBuffer) {
+      console.error('No audio data available for export')
+      return
+    }
+
+    const regionInfo = this.getRegionInfo(region)
+    const { wavBlob } = exportRegionAsWAV(audioBuffer, region.start, region.end, options)
+    const filename = generateFilename(regionInfo)
+    downloadBlob(wavBlob, filename)
+  }
+
+  /**
+   * Export all regions to WAV files (or ZIP if JSZip is available).
+   * This is a public API method that can be called programmatically.
+   */
+  public async exportAllRegions(options?: ExportOptions): Promise<void> {
+    const audioBuffer = this.wavesurfer?.getDecodedData()
+    if (!audioBuffer) {
+      console.error('No audio data available for export')
+      return
+    }
+
+    const exportableRegions = this.regions.filter((r) => r.start !== r.end)
+    if (exportableRegions.length === 0) {
+      console.warn('No exportable regions found')
+      return
+    }
+
+    await this.doExportAllRegions(exportableRegions, options || {})
   }
 
   private initRegionsContainer(): HTMLElement {
@@ -757,6 +982,9 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
 
       region.on('dblclick', (e) => {
         this.emit('region-double-clicked', region, e)
+      }),
+      region.on('context-menu', (e) => {
+        this.emit('region-context-menu', region, e)
       }),
       region.on('content-changed', () => {
         this.emit('region-content-changed', region)
