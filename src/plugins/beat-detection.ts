@@ -433,17 +433,12 @@ class BeatDetectionPlugin extends BasePlugin<BeatDetectionPluginEvents, BeatDete
   }
 
   private calculateBpmFromBeats(): void {
-    if (this.beatTimes.length < 2) {
+    if (this.beatTimes.length < 4) {
       this._bpm = 0
       return
     }
 
-    const intervals: number[] = []
-    for (let i = 1; i < this.beatTimes.length; i++) {
-      intervals.push(this.beatTimes[i] - this.beatTimes[i - 1])
-    }
-
-    const bpm = this.calculateBpmWithAutocorrelation(intervals)
+    const bpm = this.calculateBpmWithAutocorrelation(this.beatTimes)
 
     if (bpm > 0) {
       const oldBpm = this._bpm
@@ -456,63 +451,99 @@ class BeatDetectionPlugin extends BasePlugin<BeatDetectionPluginEvents, BeatDete
     }
   }
 
-  private calculateBpmWithAutocorrelation(intervals: number[]): number {
-    if (intervals.length < 2) return 0
+  private calculateBpmWithAutocorrelation(beatTimes: number[]): number {
+    if (beatTimes.length < 4) return 0
 
     const minInterval = 60 / this.options.maxBpm
     const maxInterval = 60 / this.options.minBpm
 
-    const bpmCandidates: number[] = []
-    for (const interval of intervals) {
-      if (interval >= minInterval && interval <= maxInterval) {
-        bpmCandidates.push(60 / interval)
-      }
-    }
+    const intervalHistogram: Map<number, number> = new Map()
+    const binSize = 0.01
 
-    if (bpmCandidates.length === 0) {
-      for (const interval of intervals) {
-        if (interval > 0) {
-          const bpm = 60 / interval
-          if (bpm >= this.options.minBpm && bpm <= this.options.maxBpm) {
-            bpmCandidates.push(bpm)
-          } else if (bpm * 2 >= this.options.minBpm && bpm * 2 <= this.options.maxBpm) {
-            bpmCandidates.push(bpm * 2)
-          } else if (bpm / 2 >= this.options.minBpm && bpm / 2 <= this.options.maxBpm) {
-            bpmCandidates.push(bpm / 2)
-          }
+    for (let i = 0; i < beatTimes.length; i++) {
+      for (let j = i + 1; j < beatTimes.length; j++) {
+        let interval = beatTimes[j] - beatTimes[i]
+
+        while (interval > 0 && interval < minInterval) {
+          interval *= 2
+        }
+
+        while (interval > maxInterval) {
+          interval /= 2
+        }
+
+        if (interval >= minInterval && interval <= maxInterval) {
+          const bin = Math.round(interval / binSize) * binSize
+          const currentCount = intervalHistogram.get(bin) || 0
+          const distance = j - i
+          const weight = distance <= 2 ? 1 : distance <= 4 ? 0.8 : 0.5
+          intervalHistogram.set(bin, currentCount + weight)
         }
       }
     }
 
-    if (bpmCandidates.length === 0) return 0
-
-    const binSize = 1
-    const histogram: Map<number, number> = new Map()
-
-    for (const bpm of bpmCandidates) {
-      const bin = Math.round(bpm / binSize) * binSize
-      histogram.set(bin, (histogram.get(bin) || 0) + 1)
-    }
+    if (intervalHistogram.size === 0) return 0
 
     let maxScore = 0
-    let bestBpm = 0
+    let bestInterval = 0
 
-    histogram.forEach((count, bpm) => {
-      const score = count
-      if (score > maxScore) {
-        maxScore = score
-        bestBpm = bpm
+    intervalHistogram.forEach((count, interval) => {
+      let enhancedScore = count
+
+      const halfInterval = interval / 2
+      if (halfInterval >= minInterval) {
+        const halfBin = Math.round(halfInterval / binSize) * binSize
+        enhancedScore += (intervalHistogram.get(halfBin) || 0) * 0.3
+      }
+
+      const doubleInterval = interval * 2
+      if (doubleInterval <= maxInterval) {
+        const doubleBin = Math.round(doubleInterval / binSize) * binSize
+        enhancedScore += (intervalHistogram.get(doubleBin) || 0) * 0.3
+      }
+
+      if (enhancedScore > maxScore) {
+        maxScore = enhancedScore
+        bestInterval = interval
       }
     })
 
-    if (bestBpm > 0) {
-      const closeBpms = bpmCandidates.filter((bpm) => Math.abs(bpm - bestBpm) <= 5)
-      if (closeBpms.length > 0) {
-        bestBpm = closeBpms.reduce((a, b) => a + b, 0) / closeBpms.length
+    if (bestInterval === 0) return 0
+
+    let bestBpm = 60 / bestInterval
+
+    if (bestBpm < 90 && bestBpm * 2 <= this.options.maxBpm) {
+      const doubleBpm = bestBpm * 2
+      const doubleInterval = 60 / doubleBpm
+      let doubleScore = 0
+      let normalScore = 0
+
+      for (let i = 0; i < beatTimes.length - 1; i++) {
+        const interval = beatTimes[i + 1] - beatTimes[i]
+        const ratioToDouble = interval / doubleInterval
+        const ratioToNormal = interval / bestInterval
+
+        if (Math.abs(ratioToDouble - Math.round(ratioToDouble)) < 0.15) {
+          doubleScore++
+        }
+        if (Math.abs(ratioToNormal - Math.round(ratioToNormal)) < 0.15) {
+          normalScore++
+        }
       }
+
+      if (doubleScore > normalScore * 0.7) {
+        bestBpm = doubleBpm
+      }
+    } else if (bestBpm > 180 && bestBpm / 2 >= this.options.minBpm) {
+      bestBpm = bestBpm / 2
     }
 
-    return bestBpm
+    bestBpm = Math.round(bestBpm)
+    if (bestBpm >= this.options.minBpm && bestBpm <= this.options.maxBpm) {
+      return bestBpm
+    }
+
+    return 0
   }
 
   private handleBeatDragEnd(beatIndex: number, oldTime: number, newTime: number) {
