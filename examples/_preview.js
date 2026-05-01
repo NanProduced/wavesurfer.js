@@ -50,10 +50,6 @@ const sharedStyles = `
     padding: 0;
   }
 
-  html {
-    font-size: 16px;
-  }
-
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     background: var(--bg-secondary);
@@ -63,185 +59,130 @@ const sharedStyles = `
     transition: background var(--transition), color var(--transition);
   }
 
-  .app-container {
-    max-width: 100%;
-    margin: 0 auto;
-  }
-
   .waveform-card {
     background: var(--bg-primary);
     border-radius: var(--border-radius-lg);
-    border: 1px solid var(--border-color);
-    overflow: hidden;
-    box-shadow: var(--shadow-md);
+    padding: 1.5rem;
     margin-bottom: 1rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
   }
 
   .waveform-header {
-    padding: 0.875rem 1rem;
-    border-bottom: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-  }
-
-  .waveform-title {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
-  }
-
-  .meta-info {
     display: flex;
     flex-wrap: wrap;
     gap: 1rem;
-    font-size: 0.75rem;
-    color: var(--text-muted);
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
   }
 
   .meta-item {
     display: flex;
-    align-items: center;
-    gap: 0.375rem;
+    flex-direction: column;
+    gap: 0.25rem;
   }
 
   .meta-label {
+    font-size: 0.75rem;
     color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 
   .meta-value {
+    font-size: 0.875rem;
+    font-weight: 600;
     color: var(--text-primary);
-    font-weight: 500;
-  }
-
-  .waveform-body {
-    padding: 1.25rem 1rem;
-    background: var(--bg-primary);
   }
 
   #waveform-container {
-    min-height: 80px;
+    margin-bottom: 1rem;
   }
 
-  .example-content {
-    margin-top: 1rem;
-  }
-
-  .player-controls {
-    background: var(--bg-primary);
-    border-radius: var(--border-radius-lg);
-    border: 1px solid var(--border-color);
-    padding: 0.875rem 1rem;
-    box-shadow: var(--shadow-md);
-  }
-
-  .controls-row {
+  .controls-bar {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-primary);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
     flex-wrap: wrap;
   }
 
   .control-btn {
-    width: 40px;
-    height: 40px;
-    border: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    cursor: pointer;
-    border-radius: var(--border-radius);
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent-light);
+    color: var(--accent-color);
+    cursor: pointer;
     transition: all var(--transition);
-    flex-shrink: 0;
   }
 
   .control-btn:hover {
-    background: var(--bg-hover);
-    border-color: var(--accent-color);
-  }
-
-  .control-btn.playing {
-    background: var(--accent-light);
-    border-color: var(--accent-color);
-    color: var(--accent-color);
+    background: var(--accent-color);
+    color: white;
   }
 
   .control-btn svg {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
   }
 
   .time-display {
-    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-    font-size: 0.8125rem;
-    color: var(--text-primary);
-    font-weight: 500;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
     white-space: nowrap;
-    min-width: 80px;
-    text-align: center;
   }
 
-  .progress-wrapper {
+  .progress-slider {
     flex: 1;
-    min-width: 120px;
-    position: relative;
-  }
-
-  .progress-bar {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 100%;
+    min-width: 100px;
     height: 6px;
     border-radius: 3px;
     background: var(--bg-tertiary);
-    cursor: pointer;
-    outline: none;
-  }
-
-  .progress-bar::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 14px;
-    height: 14px;
+    cursor: pointer;
+  }
+
+  .progress-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     background: var(--accent-color);
     cursor: pointer;
-    border: 2px solid var(--bg-primary);
-    box-shadow: var(--shadow-sm);
     transition: transform var(--transition);
   }
 
-  .progress-bar::-webkit-slider-thumb:hover {
-    transform: scale(1.1);
+  .progress-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
   }
 
-  .progress-bar::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--accent-color);
-    cursor: pointer;
-    border: 2px solid var(--bg-primary);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .volume-group {
+  .volume-control {
     display: flex;
     align-items: center;
-    gap: 0.375rem;
-    flex-shrink: 0;
+    gap: 0.5rem;
   }
 
   .volume-slider {
-    -webkit-appearance: none;
-    appearance: none;
     width: 80px;
     height: 4px;
     border-radius: 2px;
     background: var(--bg-tertiary);
+    -webkit-appearance: none;
+    appearance: none;
     cursor: pointer;
-    outline: none;
   }
 
   .volume-slider::-webkit-slider-thumb {
@@ -252,102 +193,71 @@ const sharedStyles = `
     border-radius: 50%;
     background: var(--accent-color);
     cursor: pointer;
-    border: 2px solid var(--bg-primary);
-  }
-
-  .volume-slider::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--accent-color);
-    cursor: pointer;
-    border: 2px solid var(--bg-primary);
   }
 
   .speed-select {
-    padding: 0.375rem 0.625rem;
-    border: 1px solid var(--border-color);
+    padding: 0.375rem 0.75rem;
     border-radius: var(--border-radius);
-    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
     color: var(--text-primary);
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     cursor: pointer;
-    outline: none;
-    transition: all var(--transition);
+    transition: border-color var(--transition);
   }
 
   .speed-select:hover {
     border-color: var(--accent-color);
   }
 
-  .speed-select:focus {
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px var(--accent-light);
-  }
-
   .regions-panel {
+    margin-top: 1rem;
+    padding: 1rem;
     background: var(--bg-primary);
     border-radius: var(--border-radius-lg);
-    border: 1px solid var(--border-color);
-    margin-top: 1rem;
-    overflow: hidden;
     box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
   }
 
-  .regions-header {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  .regions-panel.hidden {
+    display: none;
   }
 
   .regions-title {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--text-primary);
+    margin-bottom: 0.75rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
   }
 
-  .regions-count {
-    background: var(--accent-light);
-    color: var(--accent-color);
-    padding: 0.125rem 0.5rem;
-    border-radius: 9999px;
-    font-size: 0.6875rem;
-    font-weight: 600;
-  }
-
   .regions-list {
-    max-height: 200px;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
   .region-item {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.625rem 1rem;
-    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius);
     cursor: pointer;
     transition: background var(--transition);
   }
 
-  .region-item:last-child {
-    border-bottom: none;
-  }
-
   .region-item:hover {
-    background: var(--bg-secondary);
+    background: var(--bg-hover);
   }
 
   .region-color {
     width: 12px;
     height: 12px;
-    border-radius: 3px;
+    border-radius: 2px;
     flex-shrink: 0;
   }
 
@@ -357,7 +267,7 @@ const sharedStyles = `
   }
 
   .region-label {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 500;
     color: var(--text-primary);
     white-space: nowrap;
@@ -366,194 +276,158 @@ const sharedStyles = `
   }
 
   .region-time {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
-    font-family: 'SF Mono', monospace;
   }
 
   .region-actions {
     display: flex;
     gap: 0.25rem;
-    flex-shrink: 0;
   }
 
   .region-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 28px;
     height: 28px;
+    border-radius: 4px;
     border: none;
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
-    border-radius: var(--border-radius);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     transition: all var(--transition);
   }
 
   .region-action-btn:hover {
-    background: var(--bg-tertiary);
+    background: var(--bg-hover);
     color: var(--text-primary);
   }
 
   .region-action-btn.delete:hover {
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.1);
+    background: #fee2e2;
+    color: #dc2626;
   }
 
   .region-action-btn svg {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
   }
 
   .regions-empty {
-    padding: 1.5rem 1rem;
-    text-align: center;
+    font-size: 0.875rem;
     color: var(--text-muted);
-    font-size: 0.8125rem;
-  }
-
-  .loading {
     text-align: center;
-    padding: 2rem;
-    color: var(--text-muted);
-  }
-
-  @media (max-width: 600px) {
-    body {
-      padding: 0.5rem;
-    }
-
-    .controls-row {
-      gap: 0.5rem;
-    }
-
-    .control-btn {
-      width: 36px;
-      height: 36px;
-    }
-
-    .time-display {
-      font-size: 0.75rem;
-      min-width: 70px;
-    }
-
-    .volume-slider {
-      width: 60px;
-    }
-
-    .meta-info {
-      gap: 0.5rem;
-    }
+    padding: 1rem;
   }
 `
 
 const sharedHTML = `
-  <div class="app-container">
-    <div class="waveform-card">
-      <div class="waveform-header">
-        <div class="waveform-title" data-i18n="meta.audio">Audio Waveform</div>
-        <div class="meta-info">
-          <div class="meta-item">
-            <span class="meta-label" data-i18n="meta.duration">Duration:</span>
-            <span class="meta-value" id="meta-duration">--:--</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label" data-i18n="meta.sampleRate">Sample Rate:</span>
-            <span class="meta-value" id="meta-samplerate">--</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label" data-i18n="meta.channels">Channels:</span>
-            <span class="meta-value" id="meta-channels">--</span>
-          </div>
-        </div>
+  <div class="waveform-card">
+    <div class="waveform-header">
+      <div class="meta-item">
+        <span class="meta-label" data-i18n="meta.duration">Duration</span>
+        <span class="meta-value" id="meta-duration">--:--</span>
       </div>
-      <div class="waveform-body">
-        <div id="waveform-container"></div>
+      <div class="meta-item">
+        <span class="meta-label" data-i18n="meta.sampleRate">Sample Rate</span>
+        <span class="meta-value" id="meta-samplerate">--</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label" data-i18n="meta.channels">Channels</span>
+        <span class="meta-value" id="meta-channels">--</span>
       </div>
     </div>
-
-    <div class="player-controls">
-      <div class="controls-row">
-        <button class="control-btn" id="play-btn" data-tooltip="Play/Pause">
-          <svg id="play-icon" viewBox="0 0 24 24" fill="currentColor">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
-          <svg id="pause-icon" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
-            <rect x="6" y="4" width="4" height="16"></rect>
-            <rect x="14" y="4" width="4" height="16"></rect>
-          </svg>
-        </button>
-
-        <button class="control-btn" id="stop-btn" data-tooltip="Stop">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <rect x="6" y="6" width="12" height="12"></rect>
-          </svg>
-        </button>
-
-        <div class="time-display">
-          <span id="current-time">00:00</span> / <span id="total-time">00:00</span>
-        </div>
-
-        <div class="progress-wrapper">
-          <input type="range" class="progress-bar" id="progress-bar" min="0" max="1000" value="0" />
-        </div>
-
-        <div class="volume-group">
-          <button class="control-btn" id="mute-btn" data-tooltip="Mute" style="width: 32px; height: 32px;">
-            <svg id="volume-icon" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-            </svg>
-            <svg id="mute-icon" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
-              <line x1="1" y1="1" x2="23" y2="23"></line>
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-            </svg>
-          </button>
-          <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="100" />
-        </div>
-
-        <select class="speed-select" id="speed-select">
-          <option value="0.25">0.25x</option>
-          <option value="0.5">0.5x</option>
-          <option value="0.75">0.75x</option>
-          <option value="1" selected>1x</option>
-          <option value="1.25">1.25x</option>
-          <option value="1.5">1.5x</option>
-          <option value="2">2x</option>
-        </select>
-      </div>
+    <div id="waveform-container"></div>
+  </div>
+  
+  <div class="controls-bar">
+    <button class="control-btn" id="playBtn" title="Play">
+      <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor">
+        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+      </svg>
+      <svg id="pauseIcon" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+        <rect x="6" y="4" width="4" height="16"></rect>
+        <rect x="14" y="4" width="4" height="16"></rect>
+      </svg>
+    </button>
+    <span class="time-display">
+      <span id="currentTime">00:00</span> / <span id="totalTime">00:00</span>
+    </span>
+    <input type="range" class="progress-slider" id="progressSlider" min="0" max="1000" value="0">
+    <div class="volume-control">
+      <button class="control-btn" id="muteBtn" title="Mute" style="width: 32px; height: 32px;">
+        <svg id="volumeIcon" viewBox="0 0 24 24" fill="currentColor" style="width: 16px; height: 16px;">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+        <svg id="muteIcon" viewBox="0 0 24 24" fill="currentColor" style="width: 16px; height: 16px; display: none;">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <line x1="23" y1="9" x2="17" y2="15"></line>
+          <line x1="17" y1="9" x2="23" y2="15"></line>
+        </svg>
+      </button>
+      <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100">
     </div>
-
-    <div class="regions-panel" id="regions-panel" style="display: none;">
-      <div class="regions-header">
-        <div class="regions-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="9" y1="9" x2="15" y2="9"></line>
-            <line x1="9" y1="15" x2="15" y2="15"></line>
-          </svg>
-          <span data-i18n="regions.title">Regions</span>
-          <span class="regions-count" id="regions-count">0</span>
-        </div>
-      </div>
-      <div class="regions-list" id="regions-list">
-        <div class="regions-empty" data-i18n="regions.empty">No regions</div>
-      </div>
-    </div>
-
-    <div class="example-content" id="example-content"></div>
+    <select class="speed-select" id="speedSelect">
+      <option value="0.25">0.25x</option>
+      <option value="0.5">0.5x</option>
+      <option value="0.75">0.75x</option>
+      <option value="1" selected>1x</option>
+      <option value="1.25">1.25x</option>
+      <option value="1.5">1.5x</option>
+      <option value="2">2x</option>
+    </select>
+  </div>
+  
+  <div class="regions-panel hidden" id="regionsPanel">
+    <div class="regions-title" data-i18n="regions.title">Regions</div>
+    <div class="regions-list" id="regionsList"></div>
   </div>
 `
 
-const controlScript = `
+const loadPreview = (code) => {
+  const html = code.replace(/\n/g, '').match(/<html>(.+?)<\/html>/gm) || []
+  let script = code
+    .replace(/<\/script>/g, '')
+    .replace(/'wavesurfer.js'/g, `'../dist/wavesurfer.esm.js'`)
+    .replace(/'wavesurfer.js/g, `'..`)
+    .replace(/\.esm\.js/g, '.js')
+  const isBabel = script.includes('@babel')
+
+  const hasBodyContainer = script.includes('container: document.body')
+  const hasWaveformSelector = script.includes("container: '#waveform'")
+
+  if (hasBodyContainer) {
+    script = script.replace(/container:\s*document\.body/g, "container: '#waveform-container'")
+  } else if (!hasWaveformSelector && !script.includes('#waveform-container')) {
+    script = script.replace(/container:\s*(['"][^'"]+['"])/g, "container: '#waveform-container'")
+  }
+
+  const originalHtml = html.join('').replace(/<html>|<\/html>/g, '')
+
+  iframe.srcdoc = `
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>wavesurfer.js example</title>
+    <style>${sharedStyles}</style>
+  </head>
+
+  <body>
+    ${sharedHTML}
+    <div id="original-html">
+      ${originalHtml}
+    </div>
+
+    <script type="${isBabel ? 'text/babel' : 'module'}" data-type="module">
 window.__waveSurferInstances = []
 window.__regionsPlugin = null
 window.__currentTheme = 'light'
 window.__translations = {}
 window.__currentLang = 'en'
-window.__originalCreate = null
-window.__originalRegionsCreate = null
 
 const formatTime = (seconds) => {
   if (!seconds || isNaN(seconds)) return '00:00'
@@ -617,21 +491,21 @@ const updateWaveSurferTheme = (theme) => {
 }
 
 const updateRegionsList = () => {
-  const regionsPanel = document.getElementById('regions-panel')
-  const regionsList = document.getElementById('regions-list')
-  const regionsCount = document.getElementById('regions-count')
+  const regionsPanel = document.getElementById('regionsPanel')
+  const regionsList = document.getElementById('regionsList')
+  const regionsPlugin = window.__regionsPlugin
   
-  if (!window.__regionsPlugin || !regionsPanel) return
-
-  const regions = window.__regionsPlugin.getRegions ? window.__regionsPlugin.getRegions() : []
-  regionsPanel.style.display = 'block'
-  regionsCount.textContent = regions.length
-
+  if (!regionsPlugin || !regionsList || !regionsPanel) return
+  
+  const regions = regionsPlugin.regions || []
+  
   if (regions.length === 0) {
-    regionsList.innerHTML = '<div class="regions-empty" data-i18n="regions.empty">' + (window.__translations['regions.empty'] || 'No regions') + '</div>'
+    regionsPanel.classList.add('hidden')
     return
   }
-
+  
+  regionsPanel.classList.remove('hidden')
+  
   regionsList.innerHTML = regions.map(region => {
     const content = region.content?.innerHTML || region.content || 'Region'
     const start = region.start.toFixed(2)
@@ -665,7 +539,7 @@ const updateRegionsList = () => {
       </div>
     \`
   }).join('')
-
+  
   regionsList.querySelectorAll('.region-item').forEach(item => {
     const regionId = item.getAttribute('data-region-id')
     const region = regions.find(r => r.id === regionId)
@@ -679,16 +553,26 @@ const updateRegionsList = () => {
           }
         }
       })
-
-      item.querySelector('[data-action="play"]')?.addEventListener('click', (e) => {
-        e.stopPropagation()
-        region.play?.(true)
-      })
-
-      item.querySelector('[data-action="delete"]')?.addEventListener('click', (e) => {
-        e.stopPropagation()
-        region.remove?.()
-      })
+      
+      const playBtn = item.querySelector('[data-action="play"]')
+      if (playBtn) {
+        playBtn.addEventListener('click', (e) => {
+          e.stopPropagation()
+          const ws = window.__waveSurferInstances[0]
+          if (ws && region.start !== undefined) {
+            ws.setTime(region.start)
+            ws.play()
+          }
+        })
+      }
+      
+      const deleteBtn = item.querySelector('[data-action="delete"]')
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation()
+          region.remove()
+        })
+      }
     }
   })
 }
@@ -696,36 +580,29 @@ const updateRegionsList = () => {
 const initControls = (ws) => {
   if (!ws) return
   
-  window.__waveSurferInstances.push(ws)
-
-  const playBtn = document.getElementById('play-btn')
-  const stopBtn = document.getElementById('stop-btn')
-  const progressBar = document.getElementById('progress-bar')
-  const volumeSlider = document.getElementById('volume-slider')
-  const muteBtn = document.getElementById('mute-btn')
-  const speedSelect = document.getElementById('speed-select')
-  const playIcon = document.getElementById('play-icon')
-  const pauseIcon = document.getElementById('pause-icon')
-  const volumeIcon = document.getElementById('volume-icon')
-  const muteIcon = document.getElementById('mute-icon')
-  const currentTimeEl = document.getElementById('current-time')
-  const totalTimeEl = document.getElementById('total-time')
+  const playBtn = document.getElementById('playBtn')
+  const playIcon = document.getElementById('playIcon')
+  const pauseIcon = document.getElementById('pauseIcon')
+  const currentTimeEl = document.getElementById('currentTime')
+  const totalTimeEl = document.getElementById('totalTime')
+  const progressBar = document.getElementById('progressSlider')
+  const volumeSlider = document.getElementById('volumeSlider')
+  const muteBtn = document.getElementById('muteBtn')
+  const volumeIcon = document.getElementById('volumeIcon')
+  const muteIcon = document.getElementById('muteIcon')
+  const speedSelect = document.getElementById('speedSelect')
   const metaDuration = document.getElementById('meta-duration')
   const metaSampleRate = document.getElementById('meta-samplerate')
   const metaChannels = document.getElementById('meta-channels')
-
-  if (playBtn && playIcon && pauseIcon) {
+  
+  if (playBtn) {
     playBtn.addEventListener('click', () => {
-      ws.playPause?.()
+      if (ws.playPause) {
+        ws.playPause()
+      }
     })
   }
-
-  if (stopBtn) {
-    stopBtn.addEventListener('click', () => {
-      ws.stop?.()
-    })
-  }
-
+  
   if (progressBar) {
     progressBar.addEventListener('input', (e) => {
       const progress = e.target.value / 1000
@@ -735,7 +612,7 @@ const initControls = (ws) => {
       }
     })
   }
-
+  
   if (volumeSlider) {
     volumeSlider.addEventListener('input', (e) => {
       const volume = e.target.value / 100
@@ -747,7 +624,7 @@ const initControls = (ws) => {
       }
     })
   }
-
+  
   if (muteBtn && volumeIcon && muteIcon) {
     muteBtn.addEventListener('click', () => {
       const isMuted = ws.getMuted?.() || false
@@ -756,14 +633,14 @@ const initControls = (ws) => {
       muteIcon.style.display = isMuted ? 'none' : 'block'
     })
   }
-
+  
   if (speedSelect) {
     speedSelect.addEventListener('change', (e) => {
       const rate = parseFloat(e.target.value)
       ws.setPlaybackRate?.(rate)
     })
   }
-
+  
   ws.on('play', () => {
     if (playIcon && pauseIcon && playBtn) {
       playIcon.style.display = 'none'
@@ -771,7 +648,7 @@ const initControls = (ws) => {
       playBtn.classList.add('playing')
     }
   })
-
+  
   ws.on('pause', () => {
     if (playIcon && pauseIcon && playBtn) {
       playIcon.style.display = 'block'
@@ -779,7 +656,7 @@ const initControls = (ws) => {
       playBtn.classList.remove('playing')
     }
   })
-
+  
   ws.on('finish', () => {
     if (playIcon && pauseIcon && playBtn) {
       playIcon.style.display = 'block'
@@ -787,7 +664,7 @@ const initControls = (ws) => {
       playBtn.classList.remove('playing')
     }
   })
-
+  
   ws.on('timeupdate', (currentTime) => {
     const duration = ws.getDuration?.() || 0
     if (currentTimeEl) {
@@ -797,7 +674,7 @@ const initControls = (ws) => {
       progressBar.value = (currentTime / duration) * 1000
     }
   })
-
+  
   ws.on('ready', () => {
     const duration = ws.getDuration?.() || 0
     if (totalTimeEl) {
@@ -806,7 +683,7 @@ const initControls = (ws) => {
     if (metaDuration) {
       metaDuration.textContent = formatTime(duration)
     }
-
+    
     const decodedData = ws.getDecodedData?.()
     if (decodedData) {
       if (metaSampleRate) {
@@ -816,55 +693,28 @@ const initControls = (ws) => {
         metaChannels.textContent = decodedData.numberOfChannels
       }
     }
-
-    const currentVolume = ws.getVolume?.() ?? 1
+    
+    const volume = ws.getVolume?.() ?? 1
     if (volumeSlider) {
-      volumeSlider.value = currentVolume * 100
+      volumeSlider.value = volume * 100
     }
-
-    const currentRate = ws.getPlaybackRate?.() ?? 1
+    
+    const playbackRate = ws.getPlaybackRate?.() ?? 1
     if (speedSelect) {
-      speedSelect.value = currentRate.toString()
+      speedSelect.value = playbackRate
     }
-
+    
     updateWaveSurferTheme(window.__currentTheme)
   })
-
-  ws.on('decode', () => {
-    const decodedData = ws.getDecodedData?.()
-    if (decodedData) {
-      if (metaSampleRate) {
-        metaSampleRate.textContent = decodedData.sampleRate + ' Hz'
-      }
-      if (metaChannels) {
-        metaChannels.textContent = decodedData.numberOfChannels
-      }
-    }
-  })
-
-  if (ws.getActivePlugins) {
-    const plugins = ws.getActivePlugins()
-    plugins.forEach(plugin => {
-      if (plugin && (plugin.getRegions || plugin.addRegion)) {
-        window.__regionsPlugin = plugin
-        
-        plugin.on?.('region-created', updateRegionsList)
-        plugin.on?.('region-updated', updateRegionsList)
-        plugin.on?.('region-removed', updateRegionsList)
-        
-        updateRegionsList()
-      }
-    })
-  }
 }
 
 window.__initControls = initControls
 
 const setupInterceptors = () => {
-  if (typeof WaveSurfer !== 'undefined' && WaveSurfer.create && !window.__originalCreate) {
-    window.__originalCreate = WaveSurfer.create
+  if (typeof WaveSurfer !== 'undefined' && WaveSurfer.create) {
+    const originalCreate = WaveSurfer.create
     WaveSurfer.create = function(options) {
-      const instance = window.__originalCreate.call(this, options)
+      const instance = originalCreate.call(this, options)
       if (instance) {
         window.__waveSurferInstances.push(instance)
         initControls(instance)
@@ -873,10 +723,10 @@ const setupInterceptors = () => {
     }
   }
   
-  if (typeof RegionsPlugin !== 'undefined' && RegionsPlugin.create && !window.__originalRegionsCreate) {
-    window.__originalRegionsCreate = RegionsPlugin.create
+  if (typeof RegionsPlugin !== 'undefined' && RegionsPlugin.create) {
+    const originalRegionsCreate = RegionsPlugin.create
     RegionsPlugin.create = function(options) {
-      const instance = window.__originalRegionsCreate.call(this, options)
+      const instance = originalRegionsCreate.call(this, options)
       if (instance) {
         window.__regionsPlugin = instance
         instance.on?.('region-created', updateRegionsList)
@@ -890,6 +740,8 @@ const setupInterceptors = () => {
 }
 
 setupInterceptors()
+
+${script}
 
 window.addEventListener('message', (event) => {
   const { type, theme, lang, translations: trans } = event.data || {}
@@ -906,52 +758,6 @@ window.addEventListener('message', (event) => {
     applyTranslations()
   }
 })
-`
-
-const loadPreview = (code) => {
-  const html = code.replace(/\n/g, '').match(/<html>(.+?)<\/html>/gm) || []
-  let script = code
-    .replace(/<\/script>/g, '')
-    .replace(/'wavesurfer.js'/g, `'../dist/wavesurfer.esm.js'`)
-    .replace(/'wavesurfer.js/g, `'..`)
-    .replace(/\.esm\.js/g, '.js')
-  const isBabel = script.includes('@babel')
-
-  const hasBodyContainer = script.includes('container: document.body')
-  const hasWaveformSelector = script.includes("container: '#waveform'")
-
-  if (hasBodyContainer) {
-    script = script.replace(/container:\s*document\.body/g, "container: '#waveform-container'")
-  } else if (!hasWaveformSelector && !script.includes('#waveform-container')) {
-    script = script.replace(/container:\s*(['"][^'"]+['"])/g, "container: '#waveform-container'")
-  }
-
-  const augmentedScript = `
-${controlScript}
-
-${script}
-`
-
-  const originalHtml = html.join('').replace(/<html>|<\/html>/g, '')
-
-  iframe.srcdoc = `
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>wavesurfer.js example</title>
-    <style>${sharedStyles}</style>
-  </head>
-
-  <body>
-    ${sharedHTML}
-    <div id="original-html">
-      ${originalHtml}
-    </div>
-
-    <script type="${isBabel ? 'text/babel' : 'module'}" data-type="module">
-${augmentedScript}
     </script>
   </body>
 </html>
