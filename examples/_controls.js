@@ -8,7 +8,7 @@ window.__currentLang = 'en'
 window.__skipInitialApply = false
 
 const formatTime = (seconds) => {
-  if (!seconds || isNaN(seconds)) return '00:00'
+  if (!seconds || isNaN(seconds) || !isFinite(seconds)) return '00:00'
   const mins = Math.floor(seconds / 60)
   const secs = Math.floor(seconds % 60)
   return mins.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0')
@@ -25,23 +25,26 @@ const applyTranslations = () => {
     if (val !== key) el.textContent = val
   })
 
-  // Apply to all dynamic region items that already exist in the DOM
   document.querySelectorAll('.region-time [data-i18n]').forEach((el) => {
     const key = el.getAttribute('data-i18n')
     const val = t(key)
     if (val !== key) el.textContent = val
   })
 
-  // Update empty state message
   const emptyMsg = document.querySelector('.regions-empty')
   if (emptyMsg) emptyMsg.textContent = t('regions.empty')
 
-  // Update speed select options
+  const playBtn = document.getElementById('playBtn')
+  if (playBtn) playBtn.title = t('controls.play')
+
+  const muteBtn = document.getElementById('muteBtn')
+  if (muteBtn) muteBtn.title = t('controls.mute')
+
   const speedSelect = document.getElementById('speedSelect')
   if (speedSelect) {
     const labels = ['0.25x', '0.5x', '0.75x', '1x', '1.25x', '1.5x', '2x']
     Array.from(speedSelect.options).forEach((opt, i) => {
-      const labeled = t('speed.option_' + (i + 1)) || labels[i]
+      const labeled = t('controls.speed.option_' + (i + 1)) || labels[i]
       if (labeled) opt.textContent = labeled
     })
   }
@@ -53,21 +56,13 @@ const getThemeColors = (theme) => {
     : { waveColor: '#6366f1', progressColor: '#4f46e5', cursorColor: '#818cf8' }
 }
 
-// Track per-instance whether we set custom colors (so we can override them on theme switch)
-const __instanceThemeFlags = new WeakMap()
-
 const updateWaveSurferTheme = (theme) => {
   const instances = window.__waveSurferInstances
   const colors = getThemeColors(theme)
 
   instances.forEach((ws) => {
     if (!ws || !ws.setOptions) return
-    // Only update instances that were created by our interceptor with default colors
-    const custom = __instanceThemeFlags.get(ws)
-    if (custom === false || custom === undefined) {
-      ws.setOptions(colors)
-      __instanceThemeFlags.set(ws, true)
-    }
+    ws.setOptions(colors)
   })
 }
 
@@ -220,6 +215,7 @@ const initControls = (ws) => {
       ws.setMuted?.(!isMuted)
       volumeIcon.style.display = isMuted ? 'block' : 'none'
       muteIcon.style.display = isMuted ? 'none' : 'block'
+      muteBtn.title = isMuted ? t('controls.mute') : t('controls.unmute')
     })
   }
 
@@ -234,6 +230,7 @@ const initControls = (ws) => {
     playIcon.style.display = isPlaying ? 'none' : 'block'
     pauseIcon.style.display = isPlaying ? 'block' : 'none'
     playBtn.classList.toggle('playing', isPlaying)
+    playBtn.title = isPlaying ? t('controls.pause') : t('controls.play')
   }
 
   ws.on('play', () => updatePlayState(true))
@@ -265,10 +262,8 @@ const initControls = (ws) => {
     const playbackRate = ws.getPlaybackRate?.() ?? 1
     if (speedSelect) speedSelect.value = playbackRate
 
-    // Apply baked-in theme colors to this instance
     const colors = getThemeColors(window.__currentTheme)
     ws.setOptions?.(colors)
-    __instanceThemeFlags.set(ws, true)
   })
 }
 
@@ -284,37 +279,71 @@ const __cleanupInstances = () => {
 window.__initControls = initControls
 
 const setupInterceptors = () => {
-  if (typeof WaveSurfer !== 'undefined' && WaveSurfer.create) {
-    const originalCreate = WaveSurfer.create
-    WaveSurfer.create = function (options) {
-      // Cleanup previous instances before creating new ones
-      __cleanupInstances()
+  let waveSurferIntercepted = false
+  let regionsPluginIntercepted = false
 
-      const instance = originalCreate.call(this, options)
-      if (instance) {
-        // Mark this instance as having default colors (will be overridden on ready)
-        __instanceThemeFlags.set(instance, false)
-        window.__waveSurferInstances.push(instance)
-        initControls(instance)
+  const interceptWaveSurfer = () => {
+    if (waveSurferIntercepted) return true
+    if (typeof WaveSurfer !== 'undefined' && WaveSurfer.create) {
+      waveSurferIntercepted = true
+      const originalCreate = WaveSurfer.create
+      WaveSurfer.create = function (options) {
+        __cleanupInstances()
+
+        const instance = originalCreate.call(this, options)
+        if (instance) {
+          window.__waveSurferInstances.push(instance)
+          initControls(instance)
+        }
+        return instance
       }
-      return instance
+      return true
     }
+    return false
   }
 
-  if (typeof RegionsPlugin !== 'undefined' && RegionsPlugin.create) {
-    const originalRegionsCreate = RegionsPlugin.create
-    RegionsPlugin.create = function (options) {
-      const instance = originalRegionsCreate.call(this, options)
-      if (instance) {
-        window.__regionsPlugin = instance
-        instance.on?.('region-created', updateRegionsList)
-        instance.on?.('region-updated', updateRegionsList)
-        instance.on?.('region-removed', updateRegionsList)
-        instance.on?.('region-clicked', updateRegionsList)
-        setTimeout(() => updateRegionsList(), 100)
+  const interceptRegionsPlugin = () => {
+    if (regionsPluginIntercepted) return true
+    if (typeof RegionsPlugin !== 'undefined' && RegionsPlugin.create) {
+      regionsPluginIntercepted = true
+      const originalRegionsCreate = RegionsPlugin.create
+      RegionsPlugin.create = function (options) {
+        const instance = originalRegionsCreate.call(this, options)
+        if (instance) {
+          window.__regionsPlugin = instance
+          instance.on?.('region-created', updateRegionsList)
+          instance.on?.('region-updated', updateRegionsList)
+          instance.on?.('region-removed', updateRegionsList)
+          instance.on?.('region-clicked', updateRegionsList)
+          setTimeout(() => updateRegionsList(), 100)
+        }
+        return instance
       }
-      return instance
+      return true
     }
+    return false
+  }
+
+  // Try immediate interception (in case modules are already loaded)
+  interceptWaveSurfer()
+  interceptRegionsPlugin()
+
+  // If not intercepted yet, poll until the modules are available
+  // This handles the case where _controls.js is loaded before WaveSurfer
+  if (!waveSurferIntercepted || !regionsPluginIntercepted) {
+    const pollInterval = setInterval(() => {
+      const waveSurferDone = interceptWaveSurfer()
+      const regionsDone = interceptRegionsPlugin()
+
+      if (waveSurferDone && regionsDone) {
+        clearInterval(pollInterval)
+      }
+    }, 10)
+
+    // Safety timeout: stop polling after 10 seconds to avoid memory leak
+    setTimeout(() => {
+      clearInterval(pollInterval)
+    }, 10000)
   }
 }
 
