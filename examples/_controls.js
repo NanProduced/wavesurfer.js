@@ -4,7 +4,6 @@ window.__currentTheme = 'light'
 window.__translations = {}
 window.__currentLang = 'en'
 
-// Flag: skip the postMessage wait on first load (theme/i18n were baked into srcdoc)
 window.__skipInitialApply = false
 
 const formatTime = (seconds) => {
@@ -161,7 +160,6 @@ const updateRegionsList = () => {
     regionsList.appendChild(createRegionItem(region))
   })
 
-  // Apply translations to newly added items
   applyTranslations()
 }
 
@@ -267,94 +265,13 @@ const initControls = (ws) => {
   })
 }
 
-// Clean up old instances when a new example loads
-const __cleanupInstances = () => {
-  window.__waveSurferInstances.forEach((ws) => {
-    if (ws && ws.destroy) ws.destroy()
-  })
-  window.__waveSurferInstances = []
-  window.__regionsPlugin = null
-}
-
 window.__initControls = initControls
+window.__updateRegionsList = updateRegionsList
 
-const setupInterceptors = () => {
-  let waveSurferIntercepted = false
-  let regionsPluginIntercepted = false
-
-  const interceptWaveSurfer = () => {
-    if (waveSurferIntercepted) return true
-    if (typeof WaveSurfer !== 'undefined' && WaveSurfer.create) {
-      waveSurferIntercepted = true
-      const originalCreate = WaveSurfer.create
-      WaveSurfer.create = function (options) {
-        __cleanupInstances()
-
-        const instance = originalCreate.call(this, options)
-        if (instance) {
-          window.__waveSurferInstances.push(instance)
-          initControls(instance)
-        }
-        return instance
-      }
-      return true
-    }
-    return false
-  }
-
-  const interceptRegionsPlugin = () => {
-    if (regionsPluginIntercepted) return true
-    if (typeof RegionsPlugin !== 'undefined' && RegionsPlugin.create) {
-      regionsPluginIntercepted = true
-      const originalRegionsCreate = RegionsPlugin.create
-      RegionsPlugin.create = function (options) {
-        const instance = originalRegionsCreate.call(this, options)
-        if (instance) {
-          window.__regionsPlugin = instance
-          instance.on?.('region-created', updateRegionsList)
-          instance.on?.('region-updated', updateRegionsList)
-          instance.on?.('region-removed', updateRegionsList)
-          instance.on?.('region-clicked', updateRegionsList)
-          setTimeout(() => updateRegionsList(), 100)
-        }
-        return instance
-      }
-      return true
-    }
-    return false
-  }
-
-  // Try immediate interception (in case modules are already loaded)
-  interceptWaveSurfer()
-  interceptRegionsPlugin()
-
-  // If not intercepted yet, poll until the modules are available
-  // This handles the case where _controls.js is loaded before WaveSurfer
-  if (!waveSurferIntercepted || !regionsPluginIntercepted) {
-    const pollInterval = setInterval(() => {
-      const waveSurferDone = interceptWaveSurfer()
-      const regionsDone = interceptRegionsPlugin()
-
-      if (waveSurferDone && regionsDone) {
-        clearInterval(pollInterval)
-      }
-    }, 10)
-
-    // Safety timeout: stop polling after 10 seconds to avoid memory leak
-    setTimeout(() => {
-      clearInterval(pollInterval)
-    }, 10000)
-  }
-}
-
-setupInterceptors()
-
-// Apply translations immediately if pre-baked into srcdoc
 if (window.__skipInitialApply && Object.keys(window.__translations).length > 0) {
   window.addEventListener(
     'DOMContentLoaded',
     () => {
-      // Wait for the DOM from sharedHTML to be ready
       requestAnimationFrame(() => {
         applyTranslations()
       })
@@ -363,7 +280,6 @@ if (window.__skipInitialApply && Object.keys(window.__translations).length > 0) 
   )
 }
 
-// Listen for messages from parent (main page)
 window.addEventListener('message', (event) => {
   const { type, theme, lang, translations: trans } = event.data || {}
 
@@ -390,7 +306,6 @@ window.addEventListener('message', (event) => {
   }
 })
 
-// Expose public API for main page
 window.__applyI18n = (lang, trans) => {
   window.__currentLang = lang
   window.__translations = trans

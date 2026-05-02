@@ -340,7 +340,7 @@ const sharedHTML = `
     </div>
     <div id="waveform-container"></div>
   </div>
-  
+
   <div class="controls-bar">
     <button class="control-btn" id="playBtn" title="Play">
       <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor">
@@ -379,7 +379,7 @@ const sharedHTML = `
       <option value="2">2x</option>
     </select>
   </div>
-  
+
   <div class="regions-panel hidden" id="regionsPanel">
     <div class="regions-title" data-i18n="regions.title">Regions</div>
     <div class="regions-list" id="regionsList"></div>
@@ -395,6 +395,21 @@ const loadPreview = (code, theme, trans) => {
     .replace(/\.esm\.js/g, '.js')
   const isBabel = script.includes('@babel')
 
+  // Replace WaveSurfer.create() and RegionsPlugin.create() calls with wrapper functions
+  // This is a compile-time replacement — no runtime race conditions possible
+  script = script.replace(/\bWaveSurfer\.create\s*\(/g, '__WS_CREATE(')
+  script = script.replace(/\bRegionsPlugin\.create\s*\(/g, '__REGIONS_CREATE(')
+
+  // Expose ESM imports to global scope so boot-script wrappers can access them
+  script = script.replace(
+    /import\s+WaveSurfer\s+from\s+['"][^'"]+['"]/g,
+    (match) => match + '\nwindow.WaveSurfer = WaveSurfer',
+  )
+  script = script.replace(
+    /import\s+RegionsPlugin\s+from\s+['"][^'"]+['"]/g,
+    (match) => match + '\nwindow.RegionsPlugin = RegionsPlugin',
+  )
+
   const hasBodyContainer = script.includes('container: document.body')
   const hasWaveformSelector = script.includes("container: '#waveform'")
 
@@ -406,7 +421,6 @@ const loadPreview = (code, theme, trans) => {
 
   const originalHtml = html.join('').replace(/<html>|<\/html>/g, '')
 
-  // Bake theme + translations into srcdoc so no postMessage flash on load
   const srcdocTheme = theme || 'light'
 
   iframe.srcdoc = `
@@ -425,15 +439,49 @@ const loadPreview = (code, theme, trans) => {
       ${originalHtml}
     </div>
 
-    <script type="${isBabel ? 'text/babel' : 'module'}" data-type="module">
-// Bake theme + translations into the iframe page — no postMessage round-trip needed
+    <!-- Boot script: runs synchronously before ESM modules, sets up wrappers -->
+    <script>
 window.__currentTheme = ${JSON.stringify(srcdocTheme)}
 window.__currentLang = 'en'
 window.__translations = ${JSON.stringify(trans || {})}
-
-// Signal _controls.js to skip the postMessage wait and apply immediately
 window.__skipInitialApply = true
+window.__waveSurferInstances = []
+window.__regionsPlugin = null
 
+window.__cleanupInstances = function() {
+  window.__waveSurferInstances.forEach(function(ws) { if (ws && ws.destroy) ws.destroy() })
+  window.__waveSurferInstances = []
+  window.__regionsPlugin = null
+}
+
+// Wrapper for WaveSurfer.create() — intercepts at call time with zero race condition
+function __WS_CREATE(options) {
+  window.__cleanupInstances()
+  var instance = WaveSurfer.create(options)
+  if (instance) {
+    window.__waveSurferInstances.push(instance)
+    window.__initControls?.(instance)
+  }
+  return instance
+}
+
+// Wrapper for RegionsPlugin.create()
+function __REGIONS_CREATE(options) {
+  var instance = RegionsPlugin.create(options)
+  if (instance) {
+    window.__regionsPlugin = instance
+    instance.on?.('region-created', window.__updateRegionsList)
+    instance.on?.('region-updated', window.__updateRegionsList)
+    instance.on?.('region-removed', window.__updateRegionsList)
+    instance.on?.('region-clicked', window.__updateRegionsList)
+    setTimeout(function() { window.__updateRegionsList?.() }, 100)
+  }
+  return instance
+}
+    </script>
+
+    <!-- Main module script: imports run here after boot script is complete -->
+    <script type="${isBabel ? 'text/babel' : 'module'}" data-type="module">
 import '/examples/_controls.js'
 
 ${script}
