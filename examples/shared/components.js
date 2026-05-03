@@ -213,9 +213,14 @@
   var WaveformContainer = {
     create: function (wavesurfer) {
       var wrapper = wavesurfer.getWrapper()
-      if (!wrapper || !wrapper.parentElement) return { destroy: function () {} }
+      if (!wrapper) return { destroy: function () {} }
 
-      var parentEl = wrapper.parentElement
+      var rootNode = wrapper.getRootNode()
+      var hostEl = rootNode.host
+      if (!hostEl) return { destroy: function () {} }
+
+      var parentEl = hostEl.parentElement
+      if (!parentEl) return { destroy: function () {} }
 
       var card = createElement('div', { className: 'ws-waveform-card' })
 
@@ -229,10 +234,10 @@
         skeleton.appendChild(bar)
       }
 
-      parentEl.insertBefore(card, wrapper)
+      parentEl.insertBefore(card, hostEl)
       card.appendChild(meta)
       card.appendChild(skeleton)
-      card.appendChild(wrapper)
+      card.appendChild(hostEl)
 
       skeleton.style.display = 'block'
 
@@ -286,7 +291,7 @@
             fn()
           })
           if (card.parentNode) {
-            card.parentNode.insertBefore(wrapper, card)
+            card.parentNode.insertBefore(hostEl, card)
             card.remove()
           }
         },
