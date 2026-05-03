@@ -8,6 +8,15 @@ import Timer from './timer.js'
 import WebAudioPlayer from './webaudio.js'
 import { createWaveSurferState, type WaveSurferState, type WaveSurferActions } from './state/wavesurfer-state.js'
 import { setupStateEventEmission } from './reactive/state-event-emitter.js'
+import {
+  type ExportOptions,
+  defaultExportOptions,
+  sliceAudioBuffer,
+  audioBufferToWav,
+  audioBufferToWavBlob,
+  downloadBlob,
+  createSimpleZip,
+} from './audio-export.js'
 
 export type WaveSurferOptions = {
   /** Required: an HTML element or selector where the waveform will be rendered */
@@ -715,6 +724,77 @@ class WaveSurfer extends Player<WaveSurferEvents> {
     type: 'dataURL' | 'blob' = 'dataURL',
   ): Promise<string[] | Blob[]> {
     return this.renderer.exportImage(format, quality, type)
+  }
+
+  /**
+   * Export a segment of the audio as a WAV file.
+   *
+   * @param startTime Start time in seconds.
+   * @param endTime End time in seconds.
+   * @param options Export options including fade and zero-crossing settings.
+   * @returns A Blob containing the WAV file data.
+   */
+  public exportWAV(startTime: number, endTime: number, options: Partial<ExportOptions> = {}): Blob {
+    const audioBuffer = this.getDecodedData()
+    if (!audioBuffer) {
+      throw new Error('No audio data available for export')
+    }
+
+    const slicedBuffer = sliceAudioBuffer(audioBuffer, startTime, endTime, options)
+    return audioBufferToWavBlob(slicedBuffer)
+  }
+
+  /**
+   * Export audio segments as WAV files and download them.
+   * For single segment, downloads directly as WAV.
+   * For multiple segments, packages as ZIP.
+   *
+   * @param segments Array of {start, end, name?} objects.
+   * @param options Export options including fade and zero-crossing settings.
+   * @param filename Base filename (without extension).
+   */
+  public exportAndDownloadWAV(
+    segments: Array<{ start: number; end: number; name?: string }>,
+    options: Partial<ExportOptions> = {},
+    filename = 'audio_export',
+  ): void {
+    const audioBuffer = this.getDecodedData()
+    if (!audioBuffer) {
+      throw new Error('No audio data available for export')
+    }
+
+    if (segments.length === 0) {
+      throw new Error('No segments provided for export')
+    }
+
+    if (segments.length === 1) {
+      const segment = segments[0]
+      const wavBlob = this.exportWAV(segment.start, segment.end, options)
+      const segmentName = segment.name || `${segment.start.toFixed(2)}_${segment.end.toFixed(2)}`
+      downloadBlob(wavBlob, `${filename}_${segmentName}.wav`)
+    } else {
+      const files: Array<{ filename: string; content: ArrayBuffer }> = []
+
+      segments.forEach((segment, index) => {
+        const slicedBuffer = sliceAudioBuffer(audioBuffer, segment.start, segment.end, options)
+        const wavBuffer = audioBufferToWav(slicedBuffer)
+        const segmentName =
+          segment.name || `${String(index + 1).padStart(3, '0')}_${segment.start.toFixed(2)}_${segment.end.toFixed(2)}`
+        files.push({ filename: `${segmentName}.wav`, content: wavBuffer })
+      })
+
+      const zipBuffer = createSimpleZip(files)
+      const zipBlob = new Blob([zipBuffer], { type: 'application/zip' })
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+      downloadBlob(zipBlob, `${filename}_${timestamp}.zip`)
+    }
+  }
+
+  /**
+   * Get the default export options.
+   */
+  public getDefaultExportOptions(): ExportOptions {
+    return { ...defaultExportOptions }
   }
 
   /** Unmount wavesurfer */

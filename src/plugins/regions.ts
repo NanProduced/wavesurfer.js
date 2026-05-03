@@ -10,6 +10,7 @@ import createElement from '../dom.js'
 import { createDragStream } from '../reactive/drag-stream.js'
 import { effect } from '../reactive/store.js'
 import { fromEvent, cleanup as cleanupStream } from '../reactive/event-streams.js'
+import { exportPanel } from '../export-panel.js'
 
 export type RegionsPluginOptions = undefined
 export type UpdateSide = 'start' | 'end'
@@ -34,6 +35,8 @@ export type RegionsPluginEvents = BasePluginEvents & {
   'region-out': [region: Region]
   /** When region content is changed */
   'region-content-changed': [region: Region]
+  /** When a region is right-clicked */
+  'region-contextmenu': [region: Region, e: MouseEvent]
 }
 
 export type RegionEvents = {
@@ -57,6 +60,8 @@ export type RegionEvents = {
   leave: [event: MouseEvent]
   /** content changed */
   'content-changed': []
+  /** Right click / context menu */
+  contextmenu: [event: MouseEvent]
 }
 
 export type RegionParams = {
@@ -289,6 +294,7 @@ class SingleRegion extends EventEmitter<RegionEvents> implements Region {
     const dblclicks = fromEvent(element, 'dblclick')
     const pointerdowns = fromEvent(element, 'pointerdown')
     const pointerups = fromEvent(element, 'pointerup')
+    const contextmenus = fromEvent(element, 'contextmenu')
 
     // Subscribe to streams
     const unsubscribeClick = clicks.subscribe((e) => e && this.emit('click', e))
@@ -297,6 +303,12 @@ class SingleRegion extends EventEmitter<RegionEvents> implements Region {
     const unsubscribeDblclick = dblclicks.subscribe((e) => e && this.emit('dblclick', e))
     const unsubscribePointerdown = pointerdowns.subscribe((e) => e && this.toggleCursor(true))
     const unsubscribePointerup = pointerups.subscribe((e) => e && this.toggleCursor(false))
+    const unsubscribeContextmenu = contextmenus.subscribe((e) => {
+      if (e) {
+        e.preventDefault()
+        this.emit('contextmenu', e)
+      }
+    })
 
     // Store cleanup
     this.subscriptions.push(() => {
@@ -306,12 +318,14 @@ class SingleRegion extends EventEmitter<RegionEvents> implements Region {
       unsubscribeDblclick()
       unsubscribePointerdown()
       unsubscribePointerup()
+      unsubscribeContextmenu()
       cleanupStream(clicks)
       cleanupStream(mouseenters)
       cleanupStream(mouseleaves)
       cleanupStream(dblclicks)
       cleanupStream(pointerdowns)
       cleanupStream(pointerups)
+      cleanupStream(contextmenus)
     })
 
     // Drag
@@ -757,6 +771,12 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
 
       region.on('dblclick', (e) => {
         this.emit('region-double-clicked', region, e)
+      }),
+      region.on('contextmenu', (e) => {
+        this.emit('region-contextmenu', region, e)
+        if (this.wavesurfer) {
+          exportPanel.showContextMenu(this.wavesurfer, region, e.clientX, e.clientY)
+        }
       }),
       region.on('content-changed', () => {
         this.emit('region-content-changed', region)
