@@ -342,7 +342,7 @@ const sharedHTML = `
   </div>
 
   <div class="controls-bar">
-    <button class="control-btn" id="playBtn" title="Play">
+    <button class="control-btn" id="playBtn" data-i18n-title="controls.play" title="Play">
       <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor">
         <polygon points="5 3 19 12 5 21 5 3"></polygon>
       </svg>
@@ -356,7 +356,7 @@ const sharedHTML = `
     </span>
     <input type="range" class="progress-slider" id="progressSlider" min="0" max="1000" value="0">
     <div class="volume-control">
-      <button class="control-btn" id="muteBtn" title="Mute" style="width: 32px; height: 32px;">
+      <button class="control-btn" id="muteBtn" data-i18n-title="controls.mute" title="Mute" style="width: 32px; height: 32px;">
         <svg id="volumeIcon" viewBox="0 0 24 24" fill="currentColor" style="width: 16px; height: 16px;">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
           <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
@@ -457,7 +457,7 @@ window.__cleanupInstances = function() {
 // Wrapper for WaveSurfer.create() — intercepts at call time with zero race condition
 function __WS_CREATE(options) {
   window.__cleanupInstances()
-  var instance = WaveSurfer.create(options)
+  var instance = window.WaveSurfer.create(options)
   if (instance) {
     window.__waveSurferInstances.push(instance)
     window.__initControls?.(instance)
@@ -467,7 +467,7 @@ function __WS_CREATE(options) {
 
 // Wrapper for RegionsPlugin.create()
 function __REGIONS_CREATE(options) {
-  var instance = RegionsPlugin.create(options)
+  var instance = window.RegionsPlugin.create(options)
   if (instance) {
     window.__regionsPlugin = instance
     instance.on?.('region-created', window.__updateRegionsList)

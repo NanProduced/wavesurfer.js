@@ -24,6 +24,12 @@ const applyTranslations = () => {
     if (val !== key) el.textContent = val
   })
 
+  document.querySelectorAll('[data-i18n-title]').forEach((el) => {
+    const key = el.getAttribute('data-i18n-title')
+    const val = t(key)
+    if (val !== key) el.title = val
+  })
+
   document.querySelectorAll('.region-time [data-i18n]').forEach((el) => {
     const key = el.getAttribute('data-i18n')
     const val = t(key)
