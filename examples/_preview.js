@@ -9,48 +9,29 @@ const loadPreview = (code) => {
     .replace(/'wavesurfer.js/g, `'..`)
     .replace(/\.esm\.js/g, '.js')
   const isBabel = script.includes('@babel')
+  const theme = localStorage.getItem('ws-theme') || 'light'
 
-  // Start of iframe template
   iframe.srcdoc = `
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="${theme}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>wavesurfer.js examples</title>
-    <style>
-      html {
-        font-family: sans-serif;
-      }
-      body {
-        margin: 0;
-        padding: 1rem;
-      }
-      @media (prefers-color-scheme: dark) {
-        body {
-          background: #333;
-          color: #eee;
-        }
-        a {
-          color: #fff;
-        }
-      }
-      input {
-        vertical-align: middle;
-      }
-    </style>
+    <link rel="stylesheet" href="/examples/shared/styles.css" />
   </head>
 
   <body>
     ${html.join('')}
 
+    <script src="/examples/shared/components.js"></script>
+    <script src="/examples/shared/region-list.js"></script>
     <script type="${isBabel ? 'text/babel' : 'module'}" data-type="module">
       ${script}
     </script>
   </body>
 </html>
 `
-  // End of iframe template
 }
 
 const openExample = (url) => {

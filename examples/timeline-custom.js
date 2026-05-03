@@ -3,7 +3,6 @@
 import WaveSurfer from 'wavesurfer.js'
 import TimelinePlugin from 'wavesurfer.js/dist/plugins/timeline.esm.js'
 
-// Create a timeline plugin instance with custom options
 const topTimeline = TimelinePlugin.create({
   height: 20,
   insertPosition: 'beforebegin',
@@ -16,7 +15,6 @@ const topTimeline = TimelinePlugin.create({
   },
 })
 
-// Create a second timeline
 const bottomTimeline = TimelinePlugin.create({
   height: 10,
   timeInterval: 0.1,
@@ -27,7 +25,6 @@ const bottomTimeline = TimelinePlugin.create({
   },
 })
 
-// Create an instance of WaveSurfer
 const wavesurfer = WaveSurfer.create({
   container: '#waveform',
   waveColor: 'rgb(200, 0, 200)',
@@ -37,7 +34,13 @@ const wavesurfer = WaveSurfer.create({
   plugins: [topTimeline, bottomTimeline],
 })
 
-// Play on click
+window.__ws_instances = window.__ws_instances || []
+window.__ws_instances.push(wavesurfer)
+
+const waveformCard = WS.WaveformContainer.create(wavesurfer)
+WS.PlayerBar.create(wavesurfer)
+WS.InfoPanel.create(wavesurfer, waveformCard.getCard())
+
 wavesurfer.once('interaction', () => {
   wavesurfer.play()
 })

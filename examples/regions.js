@@ -3,10 +3,8 @@
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 
-// Initialize the Regions plugin
 const regions = RegionsPlugin.create()
 
-// Create a WaveSurfer instance
 const ws = WaveSurfer.create({
   container: '#waveform',
   waveColor: 'rgb(200, 0, 200)',
@@ -16,13 +14,18 @@ const ws = WaveSurfer.create({
   plugins: [regions],
 })
 
-// Give regions a random color when they are created
+window.__ws_instances = window.__ws_instances || []
+window.__ws_instances.push(ws)
+window.__ws_regions = regions
+
+const waveformCard = WS.WaveformContainer.create(ws)
+WS.PlayerBar.create(ws)
+WS.InfoPanel.create(ws, waveformCard.getCard(), { pluginInstances: { regions } })
+
 const random = (min, max) => Math.random() * (max - min) + min
 const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0, 255)}, 0.5)`
 
-// Create some regions at specific time ranges
 ws.on('decode', () => {
-  // Regions
   regions.addRegion({
     start: 0,
     end: 8,
@@ -47,7 +50,6 @@ ws.on('decode', () => {
     resize: false,
   })
 
-  // Markers (zero-length regions)
   regions.addRegion({
     start: 19,
     content: 'Marker',
@@ -64,105 +66,92 @@ regions.on('region-updated', (region) => {
   console.log('Updated region', region)
 })
 
-// Loop a region on click
 let loop = true
-// Toggle looping with a checkbox
-document.querySelector('#loop').onclick = (e) => {
-  loop = e.target.checked
-}
 
-// Drag Selection: Create new regions by moving the cursor while holding left-click on the waveform
-let dragSelection = undefined
-
-const toggleDragSelection = () => {
-  if (!dragSelection) {
-    dragSelection = regions.enableDragSelection({
-      color: 'rgba(255, 0, 0, 0.1)',
-    })
-  } else {
-    dragSelection()
-    dragSelection = undefined
-  }
-}
-
-// Toggle drag selection with a checkbox
-document.querySelector('#dragSelectToggle').addEventListener('change', () => {
-  toggleDragSelection()
+let activeRegion = null
+regions.on('region-in', (region) => {
+  console.log('region-in', region)
+  activeRegion = region
 })
-
-// Drag To Seek
-let dragToSeek = false
-const toggleDragToSeek = () => {
-  console.log(dragToSeek)
-  dragToSeek = !dragToSeek
-  ws.setOptions({ dragToSeek: dragToSeek })
-}
-
-// Toggle drag selection with a checkbox
-document.querySelector('#dragToSeekToggle').addEventListener('change', () => {
-  toggleDragToSeek()
-})
-
-{
-  let activeRegion = null
-  regions.on('region-in', (region) => {
-    console.log('region-in', region)
-    activeRegion = region
-  })
-  regions.on('region-out', (region) => {
-    console.log('region-out', region)
-    if (activeRegion === region) {
-      if (loop) {
-        region.play()
-      } else {
-        activeRegion = null
-      }
+regions.on('region-out', (region) => {
+  console.log('region-out', region)
+  if (activeRegion === region) {
+    if (loop) {
+      region.play()
+    } else {
+      activeRegion = null
     }
-  })
-  regions.on('region-clicked', (region, e) => {
-    e.stopPropagation() // prevent triggering a click on the waveform
-    activeRegion = region
-    region.play(true)
-    region.setOptions({ color: randomColor() })
-  })
-  // Reset the active region when the user clicks anywhere in the waveform
-  ws.on('interaction', () => {
-    activeRegion = null
-  })
-}
-
-// Update the zoom level on slider change
-ws.once('decode', () => {
-  document.querySelector('input[type="range"]').oninput = (e) => {
-    const minPxPerSec = Number(e.target.value)
-    ws.zoom(minPxPerSec)
   }
 })
+regions.on('region-clicked', (region, e) => {
+  e.stopPropagation()
+  activeRegion = region
+  region.play(true)
+  region.setOptions({ color: randomColor() })
+})
+ws.on('interaction', () => {
+  activeRegion = null
+})
+
+const panel = WS.ControlPanel.create(document.querySelector('#controls'))
+panel.addToggle({
+  id: 'loop',
+  label: 'Loop regions',
+  checked: true,
+  onChange: (val) => {
+    loop = val
+  },
+})
+
+let dragSelection = undefined
+panel.addToggle({
+  id: 'dragSelectToggle',
+  label: 'Enable drag select',
+  checked: false,
+  onChange: () => {
+    if (!dragSelection) {
+      dragSelection = regions.enableDragSelection({
+        color: 'rgba(255, 0, 0, 0.1)',
+      })
+    } else {
+      dragSelection()
+      dragSelection = undefined
+    }
+  },
+})
+
+panel.addToggle({
+  id: 'dragToSeekToggle',
+  label: 'Enable drag to seek',
+  checked: false,
+  onChange: () => {
+    const current = ws.options.dragToSeek
+    ws.setOptions({ dragToSeek: !current })
+  },
+})
+
+ws.once('decode', () => {
+  panel.addSlider({
+    id: 'zoom',
+    label: 'Zoom',
+    min: 10,
+    max: 1000,
+    step: 1,
+    value: 10,
+    unit: 'px/s',
+    onChange: (v) => ws.zoom(v),
+  })
+})
+
+WS.RegionList.create(ws, regions, document.querySelector('#region-list'))
 
 /*
   <html>
     <div id="waveform"></div>
 
-    <p>
-      <label>
-        <input id="loop" type="checkbox" checked="${loop}" />
-        Loop regions
-      </label>
+    <div id="controls"></div>
 
-      <label>
-        <input id="dragSelectToggle" type="checkbox" style="margin-left: 1em" />
-        Enable drag select
-      </label>
-
-      <label>
-        <input id="dragToSeekToggle" type="checkbox" style="margin-left: 1em" />
-        Enable drag to seek
-      </label>
-
-      <label style="margin-left: 2em">
-        Zoom: <input type="range" min="10" max="1000" value="10" />
-      </label>
-    </p>
+    <div id="region-list"></div>
 
     <p>
       <a href="https://wavesurfer.xyz/docs/classes/plugins_regions.default">Regions plugin docs</a>

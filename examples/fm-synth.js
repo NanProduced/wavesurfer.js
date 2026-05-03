@@ -10,6 +10,13 @@ const wavesurfer = WaveSurfer.create({
   interact: false,
 })
 
+window.__ws_instances = window.__ws_instances || []
+window.__ws_instances.push(wavesurfer)
+
+const waveformCard = WS.WaveformContainer.create(wavesurfer)
+WS.PlayerBar.create(wavesurfer)
+WS.InfoPanel.create(wavesurfer, waveformCard.getCard())
+
 const audioContext = new AudioContext()
 
 // Create an analyser node

@@ -8,34 +8,36 @@ let scrollingWaveform = false
 let continuousWaveform = true
 
 const createWaveSurfer = () => {
-  // Destroy the previous wavesurfer instance
   if (wavesurfer) {
     wavesurfer.destroy()
   }
 
-  // Create a new Wavesurfer instance
   wavesurfer = WaveSurfer.create({
     container: '#mic',
     waveColor: 'rgb(200, 0, 200)',
     progressColor: 'rgb(100, 0, 100)',
   })
 
-  // Initialize the Record plugin
+  window.__ws_instances = window.__ws_instances || []
+  window.__ws_instances.push(wavesurfer)
+
   record = wavesurfer.registerPlugin(
     RecordPlugin.create({
       renderRecordedAudio: false,
       scrollingWaveform,
       continuousWaveform,
-      continuousWaveformDuration: 30, // optional
+      continuousWaveformDuration: 30,
     }),
   )
 
-  // Render recorded audio
+  const waveformCard = WS.WaveformContainer.create(wavesurfer)
+  WS.PlayerBar.create(wavesurfer)
+  WS.InfoPanel.create(wavesurfer, waveformCard.getCard(), { pluginInstances: { record } })
+
   record.on('record-end', (blob) => {
     const container = document.querySelector('#recordings')
     const recordedUrl = URL.createObjectURL(blob)
 
-    // Create wavesurfer from the recorded audio
     const wavesurfer = WaveSurfer.create({
       container,
       waveColor: 'rgb(200, 100, 0)',
@@ -43,14 +45,12 @@ const createWaveSurfer = () => {
       url: recordedUrl,
     })
 
-    // Play button
     const button = container.appendChild(document.createElement('button'))
     button.textContent = 'Play'
     button.onclick = () => wavesurfer.playPause()
     wavesurfer.on('pause', () => (button.textContent = 'Play'))
     wavesurfer.on('play', () => (button.textContent = 'Pause'))
 
-    // Download link
     const link = container.appendChild(document.createElement('a'))
     Object.assign(link, {
       href: recordedUrl,
@@ -68,10 +68,9 @@ const createWaveSurfer = () => {
 
 const progress = document.querySelector('#progress')
 const updateProgress = (time) => {
-  // time will be in milliseconds, convert it to mm:ss format
   const formattedTime = [
-    Math.floor((time % 3600000) / 60000), // minutes
-    Math.floor((time % 60000) / 1000), // seconds
+    Math.floor((time % 3600000) / 60000),
+    Math.floor((time % 60000) / 1000),
   ]
     .map((v) => (v < 10 ? '0' + v : v))
     .join(':')
@@ -92,7 +91,6 @@ pauseButton.onclick = () => {
 
 const micSelect = document.querySelector('#mic-select')
 {
-  // Mic selection
   RecordPlugin.getAvailableAudioDevices().then((devices) => {
     devices.forEach((device) => {
       const option = document.createElement('option')
@@ -102,7 +100,7 @@ const micSelect = document.querySelector('#mic-select')
     })
   })
 }
-// Record button
+
 const recButton = document.querySelector('#record')
 
 recButton.onclick = () => {
@@ -115,9 +113,6 @@ recButton.onclick = () => {
 
   recButton.disabled = true
 
-  // reset the wavesurfer instance
-
-  // get selected device
   const deviceId = micSelect.value
   record.startRecording({ deviceId }).then(() => {
     recButton.textContent = 'Stop'
@@ -126,23 +121,31 @@ recButton.onclick = () => {
   })
 }
 
-document.querySelector('#scrollingWaveform').onclick = (e) => {
-  scrollingWaveform = e.target.checked
-  if (continuousWaveform && scrollingWaveform) {
-    continuousWaveform = false
-    document.querySelector('#continuousWaveform').checked = false
-  }
-  createWaveSurfer()
-}
-
-document.querySelector('#continuousWaveform').onclick = (e) => {
-  continuousWaveform = e.target.checked
-  if (continuousWaveform && scrollingWaveform) {
-    scrollingWaveform = false
-    document.querySelector('#scrollingWaveform').checked = false
-  }
-  createWaveSurfer()
-}
+const panel = WS.ControlPanel.create(document.querySelector('#controls'))
+panel.addToggle({
+  id: 'scrollingWaveform',
+  label: 'Scrolling waveform',
+  checked: false,
+  onChange: (v) => {
+    scrollingWaveform = v
+    if (continuousWaveform && scrollingWaveform) {
+      continuousWaveform = false
+    }
+    createWaveSurfer()
+  },
+})
+panel.addToggle({
+  id: 'continuousWaveform',
+  label: 'Continuous waveform',
+  checked: true,
+  onChange: (v) => {
+    continuousWaveform = v
+    if (continuousWaveform && scrollingWaveform) {
+      scrollingWaveform = false
+    }
+    createWaveSurfer()
+  },
+})
 
 createWaveSurfer()
 
@@ -161,9 +164,7 @@ createWaveSurfer()
     <option value="" hidden>Select mic</option>
   </select>
 
-  <label><input type="checkbox" id="scrollingWaveform" /> Scrolling waveform</label>
-
-  <label><input type="checkbox" id="continuousWaveform" checked="checked" /> Continuous waveform</label>
+  <div id="controls"></div>
 
   <p id="progress">00:00</p>
 

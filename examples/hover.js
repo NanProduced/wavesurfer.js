@@ -3,7 +3,6 @@
 import WaveSurfer from 'wavesurfer.js'
 import Hover from 'wavesurfer.js/dist/plugins/hover.esm.js'
 
-// Create an instance of WaveSurfer
 const ws = WaveSurfer.create({
   container: '#waveform',
   waveColor: 'rgb(200, 0, 200)',
@@ -20,6 +19,13 @@ const ws = WaveSurfer.create({
     }),
   ],
 })
+
+window.__ws_instances = window.__ws_instances || []
+window.__ws_instances.push(ws)
+
+const waveformCard = WS.WaveformContainer.create(ws)
+WS.PlayerBar.create(ws)
+WS.InfoPanel.create(ws, waveformCard.getCard())
 
 ws.on('interaction', () => {
   ws.play()

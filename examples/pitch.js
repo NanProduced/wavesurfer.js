@@ -11,17 +11,21 @@ const wavesurfer = WaveSurfer.create({
   sampleRate: 11025,
 })
 
-// Pitch detection
+window.__ws_instances = window.__ws_instances || []
+window.__ws_instances.push(wavesurfer)
+
+const waveformCard = WS.WaveformContainer.create(wavesurfer)
+WS.PlayerBar.create(wavesurfer)
+WS.InfoPanel.create(wavesurfer, waveformCard.getCard())
+
 wavesurfer.on('decode', () => {
   const peaks = wavesurfer.getDecodedData().getChannelData(0)
   pitchWorker.postMessage({ peaks, sampleRate: wavesurfer.options.sampleRate })
 })
 
-// When the worker sends back pitch data, update the UI
 pitchWorker.onmessage = (e) => {
   const { frequencies, baseFrequency } = e.data
 
-  // Render the frequencies on a canvas
   const pitchUpColor = '#385587'
   const pitchDownColor = '#C26351'
   const height = 100
@@ -33,7 +37,6 @@ pitchWorker.onmessage = (e) => {
   canvas.style.width = '100%'
   canvas.style.height = '100%'
 
-  // Each frequency is a point whose Y position is the frequency and X position is the time
   const pointSize = devicePixelRatio
   let prevY = 0
   frequencies.forEach((frequency, index) => {
@@ -44,18 +47,14 @@ pitchWorker.onmessage = (e) => {
     prevY = y
   })
 
-  // Add the canvas to the waveform container
   wavesurfer.renderer.getWrapper().appendChild(canvas)
-  // Remove the canvas when a new audio is loaded
   wavesurfer.once('load', () => canvas.remove())
 }
 
-// Play on click
 wavesurfer.on('interaction', () => {
   if (!wavesurfer.isPlaying()) wavesurfer.play()
 })
 
-// Drag'n'drop
 {
   const dropArea = document.querySelector('#drop')
   dropArea.ondragenter = (e) => {
@@ -73,14 +72,12 @@ wavesurfer.on('interaction', () => {
     e.preventDefault()
     e.target.classList.remove('over')
 
-    // Read the audio file
     const reader = new FileReader()
     reader.onload = (event) => {
       wavesurfer.load(event.target.result)
     }
     reader.readAsDataURL(e.dataTransfer.files[0])
 
-    // Write the name of the file into the drop area
     dropArea.textContent = e.dataTransfer.files[0].name
     wavesurfer.empty()
   }

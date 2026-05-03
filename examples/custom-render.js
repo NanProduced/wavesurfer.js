@@ -7,11 +7,6 @@ const wavesurfer = WaveSurfer.create({
   waveColor: 'rgb(200, 0, 200)',
   progressColor: 'rgb(100, 0, 100)',
   url: '/examples/audio/demo.wav',
-
-  /**
-   * Render a waveform as a squiggly line
-   * @see https://css-tricks.com/making-an-audio-waveform-visualizer-with-vanilla-javascript/
-   */
   renderFunction: (channels, ctx) => {
     const { width, height } = ctx.canvas
     const scale = channels[0].length / width
@@ -44,6 +39,13 @@ const wavesurfer = WaveSurfer.create({
     ctx.closePath()
   },
 })
+
+window.__ws_instances = window.__ws_instances || []
+window.__ws_instances.push(wavesurfer)
+
+const waveformCard = WS.WaveformContainer.create(wavesurfer)
+WS.PlayerBar.create(wavesurfer)
+WS.InfoPanel.create(wavesurfer, waveformCard.getCard())
 
 wavesurfer.on('interaction', () => {
   wavesurfer.play()

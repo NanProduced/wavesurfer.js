@@ -1,5 +1,48 @@
 // Custom styling via CSS
 
+import WaveSurfer from 'wavesurfer.js'
+import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
+
+const wsRegions = RegionsPlugin.create()
+
+const ws = WaveSurfer.create({
+  container: '#waveform',
+  waveColor: 'hotpink',
+  progressColor: 'paleturquoise',
+  cursorColor: '#57BAB6',
+  cursorWidth: 4,
+  minPxPerSec: 100,
+  url: '/examples/audio/audio.wav',
+  plugins: [wsRegions],
+})
+
+window.__ws_instances = window.__ws_instances || []
+window.__ws_instances.push(ws)
+
+const waveformCard = WS.WaveformContainer.create(ws)
+WS.PlayerBar.create(ws)
+WS.InfoPanel.create(ws, waveformCard.getCard())
+
+ws.on('decode', () => {
+  wsRegions.addRegion({
+    start: 4,
+    end: 7,
+    content: 'Blue',
+  })
+
+  wsRegions.addRegion({
+    id: 'region-green',
+    start: 10,
+    end: 12,
+    content: 'Green',
+  })
+
+  wsRegions.addRegion({
+    start: 19,
+    content: 'Marker',
+  })
+})
+
 /*
   <html>
     <style>
@@ -55,42 +98,3 @@
     <div id="waveform"></div>
   </html>
 */
-
-import WaveSurfer from 'wavesurfer.js'
-import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
-
-// Create a Regions plugin instance
-const wsRegions = RegionsPlugin.create()
-
-// Create an instance of WaveSurfer
-const ws = WaveSurfer.create({
-  container: '#waveform',
-  waveColor: 'hotpink',
-  progressColor: 'paleturquoise',
-  cursorColor: '#57BAB6',
-  cursorWidth: 4,
-  minPxPerSec: 100,
-  url: '/examples/audio/audio.wav',
-  plugins: [wsRegions],
-})
-
-// Create some regions at specific time ranges
-ws.on('decode', () => {
-  wsRegions.addRegion({
-    start: 4,
-    end: 7,
-    content: 'Blue',
-  })
-
-  wsRegions.addRegion({
-    id: 'region-green',
-    start: 10,
-    end: 12,
-    content: 'Green',
-  })
-
-  wsRegions.addRegion({
-    start: 19,
-    content: 'Marker',
-  })
-})

@@ -5,7 +5,6 @@ import WindowedSpectrogram from 'wavesurfer.js/dist/plugins/spectrogram-windowed
 import ZoomPlugin from 'wavesurfer.js/dist/plugins/zoom.esm.js'
 import TimelinePlugin from 'wavesurfer.js/dist/plugins/timeline.esm.js'
 
-// Create an instance of WaveSurfer
 const ws = WaveSurfer.create({
   container: '#waveform',
   waveColor: 'rgb(200, 0, 200)',
@@ -15,23 +14,24 @@ const ws = WaveSurfer.create({
   minPxPerSec: 100,
 })
 
-// Initialize the Windowed Spectrogram plugin
+window.__ws_instances = window.__ws_instances || []
+window.__ws_instances.push(ws)
+
 ws.registerPlugin(
   WindowedSpectrogram.create({
     labels: true,
     splitChannels: true,
-    scale: 'mel', // or 'linear', 'logarithmic', 'bark', 'erb'
+    scale: 'mel',
     frequencyMax: 18000,
     frequencyMin: 0,
-    fftSamples: 1024, // Use a reasonable FFT size (powers of 2: 256, 512, 1024, 2048)
+    fftSamples: 1024,
     labelsBackground: 'rgba(0, 0, 0, 0.1)',
-    colorMap: 'roseus', // Color scheme optimized for long audio viewing
+    colorMap: 'roseus',
     useWebWorker: true,
     progressiveLoading: true,
   }),
 )
 
-// Initialize the TimeLabels plugin
 ws.registerPlugin(
   TimelinePlugin.create({
     labels: true,
@@ -39,15 +39,17 @@ ws.registerPlugin(
   }),
 )
 
-// Initialize the Zoom plugin for interactive zooming
 ws.registerPlugin(
   ZoomPlugin.create({
-    scale: 0.5, // 50% zoom per wheel step
-    maxZoom: 1000, // Allow zooming up to 1000 px/sec
+    scale: 0.5,
+    maxZoom: 1000,
   }),
 )
 
-// Show the current zoom level
+const waveformCard = WS.WaveformContainer.create(ws)
+WS.PlayerBar.create(ws)
+WS.InfoPanel.create(ws, waveformCard.getCard())
+
 ws.on('zoom', (minPxPerSec) => {
   const zoomDisplay = document.querySelector('#zoom-level')
   if (zoomDisplay) {
@@ -55,7 +57,6 @@ ws.on('zoom', (minPxPerSec) => {
   }
 })
 
-// Play on click
 ws.once('interaction', () => {
   ws.play()
 })
@@ -75,7 +76,6 @@ ws.once('interaction', () => {
   </p>
   <p>
     🔍 Use mouse wheel to zoom in/out. The spectrogram will dynamically load segments as you navigate.
-    Notice how segments are loaded on-demand as you zoom and scroll!
   </p>
 </html>
 */

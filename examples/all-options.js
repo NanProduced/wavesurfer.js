@@ -59,6 +59,9 @@ const options = {
 
 const wavesurfer = WaveSurfer.create(options)
 
+window.__ws_instances = window.__ws_instances || []
+window.__ws_instances.push(wavesurfer)
+
 wavesurfer.on('ready', () => {
   wavesurfer.setTime(10)
 })
